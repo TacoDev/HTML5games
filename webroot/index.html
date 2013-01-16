@@ -1,0 +1,28 @@
+<html>
+	<head>
+	<script src="gametest.js"></script>
+	<style>
+		.hiddenLoader {
+			position:absolute;
+			width:1px;
+			height:1px;
+			top:-100px;
+			left:-100px;
+			z-index:0;
+		}
+		.gameCanvas {
+			position:absolute;
+			top:0px;
+			left:0px;
+			z-index:1;
+		}
+	</style>
+	</head>
+	<body onload="initGame();" >
+		<canvas id="gameScreen" class="gameCanvas"></canvas>
+		<div class="hiddenLoader">
+			<img src="images/grass.jpg" id="grassTile" ></img>
+			<img src="images/water.png" id="waterTile" ></img>
+		</div>
+	</body>
+</html>
