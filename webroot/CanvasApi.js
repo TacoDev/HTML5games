@@ -2,8 +2,11 @@
 TacoGame.CanvasApi = new function () {
 	var canvas;
 	var ctx;
+	//These point to img tags
 	var grassTile, waterTile;
+	//These point to pattern objects that ctx understands
 	var grassPattern, waterPattern;
+	//Pointer to the main paint loop interval
 	var colorInterval;
 	
 	var userActions = {
@@ -41,7 +44,6 @@ TacoGame.CanvasApi = new function () {
 	
 	function handleResize() {
 		resizeCanvas();
-		drawMap();
 	}
 	
 	function loadImages() {
@@ -73,11 +75,12 @@ TacoGame.CanvasApi = new function () {
 		var i = 0;
 		for(i = 0; i < interactions.length; i++) {
 			userActions["draw" + interactions[i].type](interactions[i]);
+			ctx.globalAlpha = 1;
 		}
 		if(interactions.current) {
 			userActions["draw" + interactions.current.type](interactions.current);
+			ctx.globalAlpha = 1;
 		}
-		ctx.globalAlpha = 1;
 	}
 	
 	function drawUI() {
