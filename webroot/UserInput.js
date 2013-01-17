@@ -40,7 +40,7 @@ TacoGame.UserInput = new function () {
 		//Setup click data, this is a mouse down
 		//TODO These need to be translated into world coords!!
 		clickPosition = {
-			x: event.clientX, 
+			x: event.clientX,
 			y: event.clientY,
 			timeLeft: animationLengthMs,
 			color: selectColor,
@@ -54,8 +54,9 @@ TacoGame.UserInput = new function () {
 		
 		if(event.button === 2) {
 			dragRectangle = null;
+		} else {
+			window.addEventListener("mousemove", updateDrag);
 		}
-		window.addEventListener("mousemove", updateDrag);
 	}
 	
 	function updateDrag(event) {
@@ -76,6 +77,11 @@ TacoGame.UserInput = new function () {
 		if(dragRectangle === null) {
 			return;
 		}
+		dragRectangle.width = Math.abs(event.clientX - clickPosition.x);
+		dragRectangle.height = Math.abs(event.clientY - clickPosition.y);
+		dragRectangle.x = Math.min(event.clientX, clickPosition.x);
+		dragRectangle.y = Math.min(event.clientY, clickPosition.y);
+		
 		if(Math.abs(dragRectangle.width + dragRectangle.height) <= wiggleRoom) {
 			dragRectangle = null;
 			//Click will now deal with it
@@ -107,6 +113,7 @@ TacoGame.UserInput = new function () {
 	}
 	
 	function handleKeyDown(event) {
+		//TODO Should handle this event when we get to hotkeys
 		keysDown[event.keyCode] = event;
 	}
 	
@@ -134,7 +141,6 @@ TacoGame.UserInput = new function () {
 			window.addEventListener("contextmenu", handleRightClick);
 			window.addEventListener("keydown", handleKeyDown);
 			window.addEventListener("keyup", handleKeyUp);
-			//TODO key press for hot keys
 		}
 	}
 }
