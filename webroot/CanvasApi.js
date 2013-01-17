@@ -1,3 +1,35 @@
+//These are more of a way to define objects for now so that it is the same every where
+TacoGame.Shape = function () {
+	this.type = "SHAPE";
+	this.strokeColor = "";
+	this.fillColor = "";
+	this.strokeAlpha = 1;
+	this.fillAlpha = 1;
+	this.translate = {x:0, y:0};
+	this.degrees = 0;
+}
+
+TacoGame.Circle = function (x, y, radius) {
+	this.type = "CIRCLE";
+	this.x = x;
+	this.y = y;
+	this.radius = radius;
+}
+
+
+TacoGame.Rectangle = function (x, y, width, height) {
+	this.type = "RECTANGLE";
+	this.x = x;
+	this.y = y;
+	this.width = width;
+	this.height = height;
+}
+
+TacoGame.Poylgon = function (points) {
+	this.type = "POLYGON";
+	this.points = points;
+}
+
 //One per session
 TacoGame.CanvasApi = new function () {
 	var canvas;
@@ -11,6 +43,7 @@ TacoGame.CanvasApi = new function () {
 	
 	var userActions = {
 		drawDrag : function (gameEvent) {
+			ctx.save();
 			ctx.fillStyle = gameEvent.color;
 			ctx.strokeStyle = gameEvent.color;
 			
@@ -19,8 +52,10 @@ TacoGame.CanvasApi = new function () {
 			ctx.stroke();
 			ctx.globalAlpha = gameEvent.timeLeft / 1000;
 			ctx.fillRect(gameEvent.x, gameEvent.y, gameEvent.width, gameEvent.height);
+			ctx.restore();
 		},
 		drawClick : function (gameEvent) {
+			ctx.save();
 			ctx.fillStyle = gameEvent.color;
 			ctx.strokeStyle = gameEvent.color;
 			
@@ -34,7 +69,82 @@ TacoGame.CanvasApi = new function () {
 			ctx.arc(gameEvent.x, gameEvent.y,gameEvent.timeLeft / 20,0,2*Math.PI);
 			ctx.closePath();
 			ctx.fill();
+			
+			ctx.restore();
+		},
+		drawScroll : function (gameEvent) {
+			var arrowPolygon = {
+				points : [
+					{x:0, y:0},
+					{x:0, y:24},
+					{x:8, y:18},
+					{x:20, y:29},
+					{x:29, y:20},
+					{x:18, y:8},
+					{x:24, y:0}
+				],
+				strokeColor: gameEvent.color,
+				fillColor: gameEvent.color,
+				translate: {x:gameEvent.x, y:gameEvent.y}
+			}
+			
+			if(gameEvent.directions == 2) {
+				if(gameEvent.right && gameEvent.up) {
+					arrowPolygon.degrees = 90;
+				}
+				if(gameEvent.right && gameEvent.down) {
+					arrowPolygon.degrees = 180;
+				}
+				if(gameEvent.left && gameEvent.down) {
+					arrowPolygon.degrees = 270;
+				}
+			
+			} else {
+				if(gameEvent.up) {
+					arrowPolygon.degrees = 45;
+				}
+				if(gameEvent.down) {
+					arrowPolygon.degrees = 225;
+				}
+				if(gameEvent.right) {
+					arrowPolygon.degrees = 135;
+				}
+				if(gameEvent.left) {
+					arrowPolygon.degrees = 315;
+				}
+			}
+			drawPoylgon(arrowPolygon);
 		}
+	}
+	
+	function drawPoylgon(polygon) {
+		var points = polygon.points;
+		var length = points.length;
+		//Need 3 points at least
+		if(length < 2) {
+			return;
+		}
+		ctx.save();
+		if(polygon.translate) {
+			ctx.translate(polygon.translate.x, polygon.translate.y);
+		}
+		if(polygon.degrees) {
+			ctx.rotate(polygon.degrees * Math.PI/180);
+		}
+		ctx.beginPath();
+		ctx.moveTo(points[0].x, points[0].y);
+		for(var i = 1; i < length; i++) {
+			ctx.lineTo(points[i].x, points[i].y);
+		}
+		ctx.closePath();
+		ctx.strokeStyle = polygon.strokeColor || ctx.strokeStyle;
+		ctx.fillStyle = polygon.fillColor || ctx.fillStyle;
+		ctx.globalAlpha = polygon.strokeAlpha || ctx.globalAlpha;
+		ctx.stroke();
+		ctx.globalAlpha = polygon.fillAlpha || ctx.globalAlpha;
+		ctx.fill();
+		
+		ctx.restore();
 	}
 	
 	function resizeCanvas(){
@@ -70,16 +180,42 @@ TacoGame.CanvasApi = new function () {
 	
 	}
 	
+	function drawOverlay() {
+		ctx.save();
+		var viewport = TacoGame.Map.getViewPort();
+		var sideLength = 300;
+		var padding = 10;
+		var top = canvas.height - sideLength - padding;
+		ctx.clearRect(padding, top, sideLength, sideLength);
+		ctx.beginPath();
+		ctx.rect(padding, top, sideLength, sideLength);
+		ctx.strokeStyle = "#7D4404";
+		ctx.fillStyle = "#00B82E";
+		ctx.lineWidth = "3";
+		ctx.stroke();
+		ctx.fill();
+		
+		//Outline of the screen
+		ctx.beginPath();
+		ctx.rect(viewport.getLeftPercent() * sideLength + padding,
+				top + viewport.getTopPercent() * sideLength,
+				viewport.getWidthPercent() * sideLength, 
+				viewport.getHeightPercent() * sideLength);
+		ctx.strokeStyle = "#E0E0E0";
+		ctx.lineWidth = "2";
+		ctx.stroke();
+		
+		ctx.restore();
+	}
+	
 	function drawUserInteractions() {
 		var interactions = TacoGame.UserInput.getInteractions();
 		var i = 0;
 		for(i = 0; i < interactions.length; i++) {
 			userActions["draw" + interactions[i].type](interactions[i]);
-			ctx.globalAlpha = 1;
 		}
-		if(interactions.current) {
-			userActions["draw" + interactions.current.type](interactions.current);
-			ctx.globalAlpha = 1;
+		for(i in interactions.staticEvents) {
+			userActions["draw" + interactions.staticEvents[i].type](interactions.staticEvents[i]);
 		}
 	}
 	
@@ -88,6 +224,7 @@ TacoGame.CanvasApi = new function () {
 		drawEntities();
 		drawEffects();
 		drawUserInteractions();
+		drawOverlay();
 	}
 	
 	return {

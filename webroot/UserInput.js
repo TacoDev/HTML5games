@@ -2,14 +2,18 @@
 TacoGame.UserInput = new function () {
 	
 	var wiggleRoom = 8;
+	var scrollWiggleRoom = 16;
 	var animationLengthMs = 200;
 	var animationSteps = 10;
 	var clickPosition = null;
 	var dragRectangle = null;
+	var scrollEvent = {up:false,down:false,right:false,left:false};
 	var canvas;
 	var animations = [];
+	animations.staticEvents = {};
 	var selectColor = "#00FF00";
 	var attackColor = "#FF0000";
+	var scrollColor = "#00FF00";
 	//an object that gives us all the currently pressed keys
 	var keysDown = {};
 	
@@ -29,7 +33,6 @@ TacoGame.UserInput = new function () {
 	
 	//Used to make click and select animations appear
 	function handleFade(event) {
-		delete animations.current;
 		animations.push(event);
 		if(animations.length === 1) {
 			fadeAnimations();
@@ -63,7 +66,7 @@ TacoGame.UserInput = new function () {
 		if(dragRectangle === null) {
 			window.removeEventListener("mousemove", updateDrag);
 		} else {
-			animations.current = dragRectangle;
+			animations.staticEvents.drag = dragRectangle;
 			//canvas draws negative width wrong so need to make sure it is always positive
 			dragRectangle.width = Math.abs(event.clientX - clickPosition.x);
 			dragRectangle.height = Math.abs(event.clientY - clickPosition.y);
@@ -74,6 +77,7 @@ TacoGame.UserInput = new function () {
 	
 	function endDrag(event) {
 		window.removeEventListener("mousemove", updateDrag);
+		delete animations.staticEvents.drag;
 		if(dragRectangle === null) {
 			return;
 		}
@@ -112,8 +116,57 @@ TacoGame.UserInput = new function () {
 		handleEvent(clickPosition);
 	}
 	
+	function handleScroll() {
+		if(animations.staticEvents.scroll) {
+			var color = animations.staticEvents.scroll.color;
+			delete animations.staticEvents.scroll.color;
+			handleEvent(animations.staticEvents.scroll);
+			animations.staticEvents.scroll.color = color;
+		}
+	}
+	
+	function checkForScroll(event) {
+		scrollEvent = {
+			up:false,
+			down:false,
+			right:false,
+			left:false,
+			x:event.clientX,
+			y:event.clientY,
+			directions:0, //Max is 2
+			color:scrollColor,
+			type: "Scroll"
+		};
+		if(event.clientX <= scrollWiggleRoom) {
+			scrollEvent.left = true;
+			scrollEvent.directions++;
+		}
+		if(event.clientX >= (canvas.width - scrollWiggleRoom)) {
+			scrollEvent.right = true;
+			scrollEvent.directions++;
+		}
+		if(event.clientY <= scrollWiggleRoom) {
+			scrollEvent.up = true;
+			scrollEvent.directions++;
+		}
+		if(event.clientY >= (canvas.height - scrollWiggleRoom)) {
+			scrollEvent.down = true;
+			scrollEvent.directions++;
+		}
+		
+		if(scrollEvent.directions) {
+			animations.staticEvents.scroll = scrollEvent;
+		} else {
+			delete animations.staticEvents.scroll;
+		}
+	}
+	
+	function handleKeyPress(event) {
+		event.type = "Keypress";
+		handleEvent(event);
+	}
+	
 	function handleKeyDown(event) {
-		//TODO Should handle this event when we get to hotkeys
 		keysDown[event.keyCode] = event;
 	}
 	
@@ -124,6 +177,7 @@ TacoGame.UserInput = new function () {
 	//Creates a Command for the gameEngine, passes on the animation if one exists
 	function handleEvent(event) {
 		//Commands are select, move attack, or hotkey
+		TacoGame.WorldSimulator.queueCommand(new TacoGame.UserInput["UserCommand" + event.type](event));
 		if(event.color) {
 			handleFade(event);
 		}
@@ -135,12 +189,15 @@ TacoGame.UserInput = new function () {
 		},
 		init: function() {
 			canvas = document.getElementById('gameScreen');
+			window.addEventListener("mousemove", checkForScroll);
 			window.addEventListener("mousedown", handleDrag);
 			window.addEventListener("mouseup", endDrag);
 			window.addEventListener("click", handleLeftClick);
 			window.addEventListener("contextmenu", handleRightClick);
 			window.addEventListener("keydown", handleKeyDown);
 			window.addEventListener("keyup", handleKeyUp);
+			window.addEventListener("keypress", handleKeyPress);
+			setInterval(handleScroll, 1/30 * 1000);
 		}
 	}
 }

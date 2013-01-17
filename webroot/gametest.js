@@ -8,36 +8,87 @@ var TacoGame = {
 }
 
 //May be multiple maps in the future
-TacoGame.Map = function () {
-
+TacoGame.Map = new function () {
+	//Game tile is a 25 * 25 pixel square
+	var pixelsPerTile = 25;
+	var minTileX = 0;
+	var maxTileX = 300;
+	var minTileY = 0;
+	var maxTileY = 300;
+	var scrollSpeed = 7;
+	
+	var viewPort = {
+		x : 0, 
+		y : 0,
+		width : 0,
+		height : 0,
+		getLeftPercent : function () {
+			if(viewPort.x === 0) {
+				return 0;
+			}
+			return viewPort.x / (maxTileX * pixelsPerTile);
+		},
+		getTopPercent : function () {
+			if(viewPort.y === 0) {
+				return 0;
+			}
+			return viewPort.y / (maxTileY * pixelsPerTile);
+		},
+		getWidthPercent : function () {
+			if(viewPort.width === 0) {
+				return 0;
+			}
+			return viewPort.width / (maxTileX * pixelsPerTile);
+		},
+		getHeightPercent : function () {
+			if(viewPort.height === 0) {
+				return 0;
+			}
+			return viewPort.height / (maxTileY * pixelsPerTile);
+		}
+	};
+	
+	var tiles = [];
+	
+	function handleResize() {
+		viewPort.width  = window.innerWidth;
+		viewPort.height = window.innerHeight;
+	}
+	
+	return {
+		init : function () {
+			canvas = document.getElementById('gameScreen');
+			window.addEventListener("resize", handleResize);
+			handleResize();
+		},
+		scrollViewPort : function (directions) {
+			if (directions.up) {
+				viewPort.y = Math.max(viewPort.y - scrollSpeed * pixelsPerTile, 0);
+			}
+			if (directions.down) {
+				viewPort.y = Math.min(viewPort.y + scrollSpeed * pixelsPerTile, maxTileY * pixelsPerTile - viewPort.height);
+			}
+			if (directions.right) {
+				viewPort.x = Math.min(viewPort.x + scrollSpeed * pixelsPerTile, maxTileX * pixelsPerTile - viewPort.width);
+			}
+			if (directions.left) {
+				viewPort.x = Math.max(viewPort.x - scrollSpeed * pixelsPerTile, 0);
+			}
+		},
+		moveViewPort : function (newCoords) {
+			viewPort.x = newCoords.x;
+			viewPort.y = newCoords.y;
+		},
+		getViewPort : function () {
+			return viewPort;
+		}
+		
+	}
 }
-
-TacoGame.Command = function () {
-
-}
+window.addEventListener("load", TacoGame.Map.init);
 
 TacoGame.MiniMap = new function () {
-
-}
-
-TacoGame.Circle = function (x, y, radius) {
-	this.type = "CIRCLE";
-	this.x = x;
-	this.y = y;
-	this.radius = radius;
-}
-
-TacoGame.Rectangle = function (x, y, width, height) {
-	this.type = "RECTANGLE";
-	this.x = x;
-	this.y = y;
-	this.width = width;
-	this.height = height;
-}
-
-TacoGame.Poylgon = function (points) {
-	this.type = "POLYGON";
-	this.points = points;
+	
 }
 
 TacoGame.Entity = function (_coordinates, _shape) {
@@ -76,27 +127,7 @@ TacoGame.Entity = function (_coordinates, _shape) {
 //One per session
 TacoGame.WorldSimulator = new function () {
 
-	map = new function () {
-		var minX = 0;
-		var maxX = 100;
-		var minY = 0;
-		var maxY = 100;
-	
-		// x is outside, y is inside
-		var elements = [[]];
-		
-		function placeElement(element) {
-			
-			function binaryInsert(elements, element, min, max) {
-				if(max > min) {
-				
-				}
-			}
-			
-		}
-		
-	}
-	
+	var commands = [];
 
 	function circlesColliding(circle1, circle2) {
 		//compare the distance to combined radii
@@ -112,6 +143,16 @@ TacoGame.WorldSimulator = new function () {
 
 	function gameObject() {
 
+	}
+	
+	//This is the api for the simulator, may get rather large
+	return {
+		queueCommand : function (newCommand) {
+			if(!newCommand.needsSync()) {
+				newCommand.commit();
+			}
+			commands.push(newCommand);
+		}
 	}
 
 }
