@@ -71,8 +71,8 @@ TacoGame.Map = new function () {
 			zealotSprite.img = event.src;
 		});*/
 		TacoGame.Utils.loadImage(MarineSprite.prototype.imgURL,
-		function (event) {
-			MarineSprite.prototype.img = event.srcElement;
+		function (image) {
+			MarineSprite.prototype.img = image;
 		});
 		entities.push(new TacoGame.Entity(new TacoGame.Circle(300, 500, 3), new MarineSprite()));
 		entities.push(new TacoGame.Entity(new TacoGame.Circle(500, 300, 3), new MarineSprite()));
@@ -163,7 +163,7 @@ TacoGame.Entity = function (_shape, spriteData) {
 		},
 		
 		isLoaded: function () {
-			return !!(spriteData.__proto__.img);
+			return !!(spriteData.img);
 		},
 		
 		inShape: function () {
@@ -173,7 +173,7 @@ TacoGame.Entity = function (_shape, spriteData) {
 		getSpriteData: function (viewPort) {
 			spriteData.updateOffsets();
 			return {
-				img : spriteData.__proto__.img,
+				img : spriteData.img,
 				offsetX : spriteData.offsetX,
 				offsetY: spriteData.offsetY,
 				width: spriteData.width,

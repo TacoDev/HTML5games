@@ -11,7 +11,9 @@ TacoGame.Utils = new function (){
 		img.src = path;
 			
 		if( callback ){
-			img.onload = callback;
+			img.onload = function (event) {
+                callback(event.currentTarget);
+            };
 		}
 		return img;
 	}
