@@ -1,4 +1,4 @@
-TacoGame.Utils = function (){
+TacoGame.Utils = new function (){
 	/**
 	* Loads an image and returns the pointer
 	*/

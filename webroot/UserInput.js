@@ -3,7 +3,7 @@ TacoGame.UserInput = new function () {
 	
 	var wiggleRoom = 8;
 	var scrollWiggleRoom = 16;
-	var animationLengthMs = 200;
+	var animationLengthMs = 100;
 	var animationSteps = 10;
 	var clickPosition = null;
 	var dragRectangle = null;

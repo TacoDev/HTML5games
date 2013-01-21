@@ -172,7 +172,17 @@ TacoGame.CanvasApi = new function () {
 	
 	//Do nothing for now
 	function drawEntities() {
-	
+		var entities = TacoGame.Map.getEntities();
+		for(var i = 0; i < entities.length; i++) {
+			ctx.save();
+			if(entities[i].scaleNegative) {
+				ctx.scale(-1, 1);
+				ctx.drawImage(entities[i].img, entities[i].offsetX, entities[i].offsetY, entities[i].width, entities[i].height, -entities[i].x-entities[i].width, entities[i].y, entities[i].width, entities[i].height);
+			} else {
+				ctx.drawImage(entities[i].img, entities[i].offsetX, entities[i].offsetY, entities[i].width, entities[i].height, entities[i].x, entities[i].y, entities[i].width, entities[i].height);
+			}
+			ctx.restore();
+		}
 	}
 	
 	//Do nothing for now
@@ -204,6 +214,19 @@ TacoGame.CanvasApi = new function () {
 		ctx.strokeStyle = "#E0E0E0";
 		ctx.lineWidth = "2";
 		ctx.stroke();
+		
+		var entities = TacoGame.Map.getAllEntities();
+		for(var i = 0; i < entities.length; i++) {
+			ctx.save();
+			ctx.fillStyle = entities[i].color;
+			
+			ctx.beginPath();
+			ctx.arc(entities[i].x / viewport.getWidthConversion() * sideLength + padding, entities[i].y / viewport.getHeightConversion() * sideLength + top, 2, 0, 2*Math.PI);
+			ctx.closePath();
+			ctx.fill();
+			
+			ctx.restore();
+		}
 		
 		ctx.restore();
 	}
