@@ -16,19 +16,76 @@ TacoGame.UserInput.UserCommand = function () {
 	}
 }
 
-//Translate this into select
-TacoGame.UserInput.UserCommandDrag = function (event) {
+//Translate this into select or move
+TacoGame.UserInput.UserCommandClick = function (event) {
+	var commandBase = new TacoGame.UserInput.UserCommand();
+
+	if (event.right) {
+		if (TacoGame.Map.isUnitSelected()) {
+			return new TacoGame.UserInput.UserCommandMove(event);
+		} else {
+			TacoGame.Map.deselectEntities();
+		}
+	}
+	//When the user does the action
+	this.commit = function() {
+		commandBase.commit();
+		TacoGame.Map.selectEntities(new TacoGame.Rectangle(event.x - 8, event.y - 8, 16, 16), event.shift);
+	}
+	
+	//To undo an action
+	this.revert = function() {
+		commandBase.revert();
+	}
+	//Check if this command needs to be synced with others
+	this.needsSync = function() {
+		return false;
+	}
+}
+//Translate this into select or move
+TacoGame.UserInput.UserCommandkeypress = function (event) {
+
 	//Check if this command needs to be synced with others
 	this.needsSync = function() {
 		return true;
 	}
 }
 
-//Translate this into select or move
-TacoGame.UserInput.UserCommandClick = function (event) {
+TacoGame.UserInput.UserCommandMove = function (event) {
+	var commandBase = new TacoGame.UserInput.UserCommand();
+
+	//When the user does the action
+	this.commit = function() {
+		commandBase.commit();
+		TacoGame.Map.setDestination(event);
+	}
+	
+	//To undo an action
+	this.revert = function() {
+		commandBase.revert();
+	}
 	//Check if this command needs to be synced with others
 	this.needsSync = function() {
-		return true;
+		return false;
+	}
+}
+
+
+TacoGame.UserInput.UserCommandSelect = function (event) {
+	var commandBase = new TacoGame.UserInput.UserCommand();
+	//Check if this command needs to be synced with others
+	this.commit = function() {
+		commandBase.commit();
+		TacoGame.Map.selectEntities(new TacoGame.Rectangle(event.x, event.y, event.width, event.height), event.shift);
+	}
+	
+	//To undo an action
+	this.revert = function() {
+		commandBase.revert();
+	}
+	
+	this.needsSync = function() {
+		return false;
 	}
 }
 

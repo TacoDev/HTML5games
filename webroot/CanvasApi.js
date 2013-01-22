@@ -18,11 +18,20 @@ TacoGame.Circle = function (x, y, radius) {
 
 
 TacoGame.Rectangle = function (x, y, width, height) {
+	var internal = this;
 	this.type = "RECTANGLE";
 	this.x = x;
 	this.y = y;
 	this.width = width;
 	this.height = height;
+	this.getPoints = function () {
+		return [
+			{x:internal.x,y:internal.y},
+			{x:internal.x + internal.width,y:internal.y},
+			{x:internal.x + internal.width,y:internal.y + internal.height},
+			{x:internal.x,y:internal.y + internal.height}
+		]
+	}
 }
 
 TacoGame.Poylgon = function (points) {
@@ -42,7 +51,7 @@ TacoGame.CanvasApi = new function () {
 	var colorInterval;
 	
 	var userActions = {
-		drawDrag : function (gameEvent) {
+		drawSelect : function (gameEvent) {
 			ctx.save();
 			ctx.fillStyle = gameEvent.color;
 			ctx.strokeStyle = gameEvent.color;
@@ -173,7 +182,22 @@ TacoGame.CanvasApi = new function () {
 	//Do nothing for now
 	function drawEntities() {
 		var entities = TacoGame.Map.getEntities();
+		var viewport = TacoGame.Map.getViewPort();
 		for(var i = 0; i < entities.length; i++) {
+			ctx.save();
+			
+			if(entities[i].radius && entities[i].selected) {
+				ctx.beginPath();
+				ctx.fillStyle = "#00E32A";
+				ctx.strokeStyle = "#00E32A";
+				ctx.setTransform(1.3,0,0,.7, -viewport.x, -viewport.y);
+				ctx.beginPath();
+				ctx.arc(entities[i].tX / 1.3 , entities[i].tY / .7, entities[i].radius, 0, 2*Math.PI);
+				ctx.stroke();
+				ctx.globalAlpha = .2;
+				ctx.fill();
+			}
+			ctx.restore();
 			ctx.save();
 			if(entities[i].scaleNegative) {
 				ctx.scale(-1, 1);
@@ -221,7 +245,7 @@ TacoGame.CanvasApi = new function () {
 			ctx.fillStyle = entities[i].color;
 			
 			ctx.beginPath();
-			ctx.arc(entities[i].x / viewport.getWidthConversion() * sideLength + padding, entities[i].y / viewport.getHeightConversion() * sideLength + top, 2, 0, 2*Math.PI);
+			ctx.arc(entities[i].x / viewport.getWidthConversion() * sideLength + padding, entities[i].y / viewport.getHeightConversion() * sideLength + top, 1, 0, 2*Math.PI);
 			ctx.closePath();
 			ctx.fill();
 			

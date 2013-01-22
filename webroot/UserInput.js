@@ -3,7 +3,7 @@ TacoGame.UserInput = new function () {
 	
 	var wiggleRoom = 8;
 	var scrollWiggleRoom = 16;
-	var animationLengthMs = 100;
+	var animationLengthMs = 300;
 	var animationSteps = 10;
 	var clickPosition = null;
 	var dragRectangle = null;
@@ -16,6 +16,7 @@ TacoGame.UserInput = new function () {
 	var scrollColor = "#00FF00";
 	//an object that gives us all the currently pressed keys
 	var keysDown = {};
+	this.keysDown = keysDown;
 	
 	//Used to make the drag fade animation
 	function fadeAnimations() {
@@ -47,16 +48,20 @@ TacoGame.UserInput = new function () {
 			y: event.clientY,
 			timeLeft: animationLengthMs,
 			color: selectColor,
-			type: "Click"
+			type: "Click",
+			right : false,
+			shift : keysDown[16] ? true : false
 		};
-		//Setup Drag data
+		//Setup Select data
 		dragRectangle = new TacoGame.Rectangle(clickPosition.x, clickPosition.y, 0, 0);
-		dragRectangle.timeLeft = animationLengthMs;
+		dragRectangle.timeLeft = animationLengthMs / 2;
 		dragRectangle.color = selectColor;
-		dragRectangle.type = "Drag";
+		dragRectangle.type = "Select";
+		dragRectangle.shift = keysDown[16] ? true : false
 		
 		if(event.button === 2) {
 			dragRectangle = null;
+			clickPosition.right = true;
 		} else {
 			window.addEventListener("mousemove", updateDrag);
 		}
@@ -162,7 +167,6 @@ TacoGame.UserInput = new function () {
 	}
 	
 	function handleKeyPress(event) {
-		event.type = "Keypress";
 		handleEvent(event);
 	}
 	
@@ -176,6 +180,10 @@ TacoGame.UserInput = new function () {
 	
 	//Creates a Command for the gameEngine, passes on the animation if one exists
 	function handleEvent(event) {
+		if(event.x && event.y) {
+			event.x += TacoGame.Map.getViewPort().x;
+			event.y += TacoGame.Map.getViewPort().y;
+		}
 		//Commands are select, move attack, or hotkey
 		TacoGame.WorldSimulator.queueCommand(new TacoGame.UserInput["UserCommand" + event.type](event));
 		if(event.color) {
@@ -197,8 +205,9 @@ TacoGame.UserInput = new function () {
 			window.addEventListener("keydown", handleKeyDown);
 			window.addEventListener("keyup", handleKeyUp);
 			window.addEventListener("keypress", handleKeyPress);
-			setInterval(handleScroll, 1/30 * 1000);
-		}
+			setInterval(handleScroll, 20);
+		},
+		keysDown : keysDown
 	}
 }
 
