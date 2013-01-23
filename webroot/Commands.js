@@ -30,7 +30,7 @@ TacoGame.UserInput.UserCommandClick = function (event) {
 	//When the user does the action
 	this.commit = function() {
 		commandBase.commit();
-		TacoGame.Map.selectEntities(new TacoGame.Rectangle(event.x - 8, event.y - 8, 16, 16), event.shift);
+		TacoGame.Map.selectEntities(new TacoGame.Rectangle(event.x - 4, event.y - 4, 8, 8), event.shift);
 	}
 	
 	//To undo an action
