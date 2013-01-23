@@ -1,5 +1,8 @@
 
 TacoGame.UserInput = new function () {
+	this.CLICK = "Click";
+	this.SELECT = "Select";//dragging
+	this.MOVE = "Move";
 	
 	var wiggleRoom = 8;
 	var scrollWiggleRoom = 16;
@@ -48,15 +51,16 @@ TacoGame.UserInput = new function () {
 			y: event.clientY,
 			timeLeft: animationLengthMs,
 			color: selectColor,
-			type: "Click",
+			type: this.CLICK,
 			right : false,
 			shift : keysDown[16] ? true : false
 		};
+		
 		//Setup Select data
 		dragRectangle = new TacoGame.Rectangle(clickPosition.x, clickPosition.y, 0, 0);
 		dragRectangle.timeLeft = animationLengthMs / 2;
 		dragRectangle.color = selectColor;
-		dragRectangle.type = "Select";
+		dragRectangle.type = this.SELECT;
 		dragRectangle.shift = keysDown[16] ? true : false
 		
 		if(event.button === 2) {
@@ -65,6 +69,8 @@ TacoGame.UserInput = new function () {
 		} else {
 			window.addEventListener("mousemove", updateDrag);
 		}
+		
+		//TacoGame.ClickRegister.fireEvents(clickPosition);
 	}
 	
 	function updateDrag(event) {

@@ -5,7 +5,8 @@ function initGame() {
 //Namespace for the game, placeholder for now
 var TacoGame = {
 
-}
+};
+
 var width = 500;
 var pixelsPerTile = 10;
 
@@ -308,6 +309,7 @@ TacoGame.Math = new function () {
 		}
 	}
 	//From  http://jsfromhell.com/math/is-point-in-poly
+	//returns Boolean
 	Math.isPointInPolygon = function(polygon, pt){
 		polygon = polygon.points;
 		for(var c = false, i = -1, l = polygon.length, j = l - 1; ++i < l; j = i)
@@ -804,3 +806,14 @@ BinaryHeap.prototype = {
     }
   }
 };
+
+
+
+
+window.addEventListener( "load", function (){
+	//register an event to a polygon
+	var mikesRect = new TacoGame.Rectangle(10, 10, 200, 200);
+	var mikesPolygon = new TacoGame.Poylgon(mikesRect.getPoints());
+	TacoGame.ClickRegister.RegistrantFactory( mikesPolygon, TacoGame.UserInput.CLICK, TacoGame.UserInput.MikesTestCommand );
+});
+

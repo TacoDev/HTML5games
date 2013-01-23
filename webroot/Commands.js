@@ -87,7 +87,15 @@ TacoGame.UserInput.UserCommandSelect = function (event) {
 	this.needsSync = function() {
 		return false;
 	}
-}
+};
+
+TacoGame.UserInput.MikesTestCommand = function (event){
+	var commandBase = new TacoGame.UserInput.UserCommand();
+	
+	console.log("called Michael test Command");
+	console.log(event);
+	
+};
 
 TacoGame.UserInput.UserCommandKeypress = function (event) {
 	var commandBase = new TacoGame.UserInput.UserCommand ();
@@ -107,7 +115,7 @@ TacoGame.UserInput.UserCommandKeypress = function (event) {
 	this.needsSync = function() {
 		return false;
 	}
-}
+};
 TacoGame.UserInput.UserCommandScroll = function (event) {
 	var commandBase = new TacoGame.UserInput.UserCommand ();
 	
@@ -127,4 +135,4 @@ TacoGame.UserInput.UserCommandScroll = function (event) {
 	this.needsSync = function() {
 		return false;
 	}
-}
+};
