@@ -126,6 +126,7 @@ TacoGame.Comm.ServerConnection = function (response) {
 		var valid = true;
 		var closeListener = function(){};
 		var queue = [];
+		var timer;
 
 		// attempt to connect using a web socket
 		var host = 'ws://' + document.location.hostname + ':8090';
@@ -148,18 +149,27 @@ TacoGame.Comm.ServerConnection = function (response) {
 			onResponse(message.data);
 		}
 		
-		function opening(message) {
-			queue.push(message);
+		function checkOpen() {
 			if(socket.readyState === WebSocket.OPEN) {
 				me.send = send;
 				while(queue.length) {
 					send(queue.shift());
 				}
+			} else {
+				clearTimeout(timer);
+				timer = setTimeout(checkOpen, 50);
 			}
+		}
+		
+		function opening(message) {
+			queue.push(message);
+			checkOpen();
 			
 			if(socket.readyState > WebSocket.OPEN) {
 				throw "failed to init";
 			}
+			clearTimeout(timer);
+			timer = setTimeout(checkOpen, 50);
 		}
 		
 		function send(message) {
@@ -167,6 +177,7 @@ TacoGame.Comm.ServerConnection = function (response) {
 		}
 
 		this.onclose = function(newListener) {
+			clearTimeout(timer);
 			closeListener = newListener;
 		}
 		
