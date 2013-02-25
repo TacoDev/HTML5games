@@ -13,5 +13,20 @@ var commandManager = new function() {
 		request.order = order;
 		events.fireEvent("commandQueued", request);
 	};
+	
+	this.addUnit = function(newUnit, lib) {
+		events.fireEvent("addUnit", newUnit);
+	};
+	
+	this.getUnits = function() {
+		events.fireEvent("resendUnits", {});
+	};
+	
+	this.removeUnit = function(unitId, lib) {
+		events.fireEvent("removeUnit", unitId);
+	};
 };
 exports.queueCommand = commandManager.queueCommand;
+exports.addUnit = commandManager.addUnit;
+exports.getUnits = commandManager.getUnits;
+exports.removeUnit = commandManager.removeUnit;

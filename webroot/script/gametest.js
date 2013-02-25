@@ -6,6 +6,12 @@ function initGame() {
 var TacoGame = {
 
 }
+
+TacoGame.Player = new function () {
+	var user = null;
+	
+	this.id = Math.round(Math.random() * 9000 + 1000) + "-" + Math.round(Math.random() * 9000 + 1000) + "-" + Math.round(Math.random() * 9000 + 1000);
+}
 var width = 400;
 var pixelsPerTile = 10;
 
@@ -69,30 +75,50 @@ TacoGame.Map = new function () {
 	}
 	
 	function loadSprites() {
-		/*TacoGame.Utils.loadImage(zealotSprite.imgURL,
-		function (event) {
-			zealotSprite.img = event.src;
-		});*/
+		TacoGame.Utils.loadImage(ZealotSprite.prototype.imgURL,
+		function (image) {
+			ZealotSprite.prototype.img = image;
+		});
 		TacoGame.Utils.loadImage(MarineSprite.prototype.imgURL,
 		function (image) {
 			MarineSprite.prototype.img = image;
 		});
-		var marineRadius = 9;
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(300, 300, marineRadius), new MarineSprite()));
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(500, 500, marineRadius), new MarineSprite()));
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(200, 200, marineRadius), new MarineSprite()));
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(400, 700, marineRadius), new MarineSprite()));
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(600, 100, marineRadius), new MarineSprite()));
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(350, 740, marineRadius), new MarineSprite()));
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(600, 640, marineRadius), new MarineSprite()));
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(630, 640, marineRadius), new MarineSprite()));
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(670, 640, marineRadius), new MarineSprite()));
+		TacoGame.Utils.loadImage(ZerglingSprite.prototype.imgURL,
+		function (image) {
+			ZerglingSprite.prototype.img = image;
+		});
+		
+	}
+	
+	function killUnit(unit) {
+		for (var i = 0; i < entities.length; i++) {
+			if(entities[i].id === unit) {
+				entities[i].kill();
+			}
+		}
+	}
+	
+	function initMyUnits() {
+		for (var i = 0; i < entities.length; i++) {
+			if(entities[i].playerId === TacoGame.Player.id) {
+				sendRequest(request({lib:"commander",func:"addUnit"}, entities[i].toObject()));
+			}
+		}
+	}
+	
+	function addEntity(params) {
+		for (var i = 0; i < entities.length; i++) {
+			if(entities[i].id === params.id) {
+				return;
+			}
+		}
+		entities.push(new TacoGame.Entity(new TacoGame.Circle(params.x, params.y, params.r), params.type, params.id, params.playerId));
 	}
 	
 	function stepEntities() {
 		for (var i = 0; i < entities.length; i++) {
 			entities[i].step();
-		}	
+		}
 	}
 	
 	return {
@@ -102,6 +128,33 @@ TacoGame.Map = new function () {
 			handleResize();
 			loadSprites();
 			TacoGame.Utils.addListener('stepWorld', stepEntities);
+			TacoGame.Utils.addServerListener('addUnit', addEntity);
+			TacoGame.Utils.addServerListener('resendUnits', initMyUnits);
+			TacoGame.Utils.addServerListener('removeUnit', killUnit);
+			
+			function randomInt(max, min) {
+				var num = (Math.random() * (max - min)) + min;
+				num -= num % 10;
+				return num
+			}
+			var marineRadius = 9;
+			for(var i = 0; i < 2; i++) {
+				do {
+					var x = randomInt(0, 1000);
+					var y = randomInt(0, 1000);
+				} while(TacoGame.Map.isOccupied(x, y, marineRadius, 10));
+				var id = (new Date()).getTime() + "" + Math.round(Math.random() * 600);
+				addEntity({x:x,y:y,r:marineRadius,type:"MarineSprite",playerId:TacoGame.Player.id,id:id});
+			}
+			sendRequest(request({lib:"commander",func:"getUnits"}));
+		},
+		
+		destroy : function () {
+			for (var i = 0; i < entities.length; i++) {
+				if(entities[i].playerId === TacoGame.Player.id) {
+					sendRequest(request({lib:"commander",func:"removeUnit"}, entities[i].id));
+				}
+			}
 		},
 		
 		scrollViewPort : function (directions) {
@@ -131,7 +184,11 @@ TacoGame.Map = new function () {
 		getEntities : function () {
 			var spriteData = [];
 			var viewPortRectangle = new TacoGame.Rectangle(viewPort.x, viewPort.y, viewPort.width, viewPort.height);
-			for (var i = 0; i < entities.length; i++) {
+			for (var i = entities.length - 1; i >= 0; i--) {
+				if(entities[i].gone()) {
+					entities.splice(i, 1);
+					continue;
+				}
 				if(entities[i].isLoaded() && Math.circleRectangleColliding(entities[i].getShape(), viewPortRectangle)) {
 					spriteData.push(entities[i].getSpriteData(viewPort));
 				}
@@ -149,18 +206,32 @@ TacoGame.Map = new function () {
 			return spriteData;
 		},
 		
-		selectEntities : function (rectangle, keepSelection) {
+		selectEntities : function (rectangle, keepSelection, click) {
 			keepSelection = !!keepSelection;
 			if(unitSelected) {
 				unitSelected = keepSelection;
 			}
-			for (var i = 0; i < entities.length; i++) {
-				if(entities[i].selected) {
-					entities[i].selected = keepSelection;
+			if (click) {
+				for (var i = 0; i < entities.length; i++) {
+					if(entities[i].selected) {
+						entities[i].selected = keepSelection;
+					}
+					if(Math.circleRectangleColliding(entities[i].getShape(), rectangle)) {
+						entities[i].selected = true;
+						unitSelected = true;
+					}
 				}
-				if(Math.circleRectangleColliding(entities[i].getShape(), rectangle)) {
-					entities[i].selected = true;
-					unitSelected = true;
+			} else {
+				for (var i = 0; i < entities.length; i++) {
+					if(entities[i].playerId === TacoGame.Player.id) {
+						if(entities[i].selected) {
+							entities[i].selected = keepSelection;
+						}
+						if(Math.circleRectangleColliding(entities[i].getShape(), rectangle)) {
+							entities[i].selected = true;
+							unitSelected = true;
+						}
+					}
 				}
 			}
 		},
@@ -212,7 +283,6 @@ TacoGame.Map = new function () {
 					}
 					distance--;
 				}
-				test = "blah";
 			}
 			return false;
 		},
@@ -229,11 +299,27 @@ TacoGame.Map = new function () {
 		
 		setDestination : function (event) {
 			for (var i = 0; i < entities.length; i++) {
-				if(entities[i].selected) {
-					entities[i].setDestination(event);
+				if(entities[i].selected && entities[i].playerId === TacoGame.Player.id) {
+					var newEvent = {
+						unit : entities[i].id,
+						start : entities[i].getShape(),
+						end : event,
+						type : "MoveUnit"
+					}
+					TacoGame.WorldSimulator.queueCommand(new TacoGame.UserInput["UserCommand" + newEvent.type](newEvent));
 				}
 			}
 		},
+		
+		setUnitDestination : function (unit, end) {
+			for (var i = 0; i < entities.length; i++) {
+				if(entities[i].id === unit) {
+					entities[i].setDestination(end);
+					return;
+				}
+			}
+		},
+		
 		isUnitSelected : function () {
 			return unitSelected;
 		}
@@ -241,19 +327,23 @@ TacoGame.Map = new function () {
 	}
 }
 window.addEventListener("load", TacoGame.Map.init);
+window.addEventListener("unload", TacoGame.Map.destroy);
 
 
-TacoGame.Entity = function (_shape, spriteData) {
+TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	
+	var spriteData = new window[type]();
 	//Valid shapes are CIRCLE and POYLGON, both are 2d
-	
 	var shape = _shape || {
 		type:"undefined"
 	}
 	
 	var desiredLoction = null;
 	var miniMapColor = "#E30000";
-	var id = (new Date()).getTime() + "" + Math.round(Math.random() * 600);
+	if(playerId === TacoGame.Player.id) {
+		miniMapColor = "#00FF40";
+	}
+	var id = unitId;
 	var missedSteps = 0;
 	
 	function setDestination (end) {
@@ -279,81 +369,93 @@ TacoGame.Entity = function (_shape, spriteData) {
 	}
 	
 	//public interface
-	return {
-		selected : false,
-		id : id,
+	this.selected = false;
+	this.id = id;
+	this.playerId = playerId;
+	this.kill = spriteData.died;
+	this.gone = spriteData.gone;
+	
+	this.getShape = function () {
+		return shape;
+	};
 		
-		getShape: function () {
-			return shape;
-		},
+	this.getDrawData = function () {
+		return {
+			shape : "CIRCLE",
+			color : miniMapColor,
+			x: shape.x,
+			y: shape.y
 		
-		getDrawData: function () {
-			return {
-				shape : "CIRCLE",
-				color : miniMapColor,
-				x: shape.x,
-				y: shape.y
-			
-			};
-		},
+		};
+	};
 		
-		isLoaded: function () {
-			return !!(spriteData.img);
-		},
+	this.isLoaded = function () {
+		return !!(spriteData.img);
+	};
 		
-		getSpriteData: function (viewPort) {
-			spriteData.updateOffsets();
-			return {
-				img : spriteData.img,
-				offsetX : spriteData.offsetX,
-				offsetY: spriteData.offsetY,
-				width: spriteData.width,
-				height: spriteData.height,
-				x: shape.x - viewPort.x - 32,
-				y: shape.y - viewPort.y - 42,
-				tX: shape.x,
-				tY: shape.y,
-				radius: shape.radius,
-				scaleNegative: spriteData.scaleNegative,
-				selected : this.selected
-			}
-		},
+	this.getSpriteData = function (viewPort) {
+		spriteData.updateOffsets();
+		return {
+			img : spriteData.img,
+			offsetX : spriteData.offsetX,
+			offsetY: spriteData.offsetY,
+			width: spriteData.width,
+			height: spriteData.height,
+			x: shape.x - viewPort.x - spriteData.fixX,
+			y: shape.y - viewPort.y - spriteData.fixY,
+			tX: shape.x,
+			tY: shape.y,
+			radius: shape.radius,
+			scaleNegative: spriteData.scaleNegative,
+			selected : this.selected
+		}
+	};
 		
-		step: function () {
-			spriteData.step();
-			if(desiredLoction) {
-				if(desiredLoction.x === shape.x &&
-					desiredLoction.y === shape.y ||
-					desiredLoction.steps.length === 0) {
-					desiredLoction = null;
-					spriteData.setAction(0);
-					return;
+	this.step = function () {
+		spriteData.step();
+		if(desiredLoction) {
+			if(desiredLoction.x === shape.x &&
+				desiredLoction.y === shape.y ||
+				desiredLoction.steps.length === 0) {
+				desiredLoction = null;
+				spriteData.setAction(0);
+				return;
+			} else {
+				var step = desiredLoction.steps.shift();
+				step.x *= pixelsPerTile;
+				step.y *= pixelsPerTile;
+				spriteData.setDegrees(Math.angleBetweenTwoPoints(step, shape));
+				if(!TacoGame.Map.isOccupied(step.x, step.y, shape.radius, id)) {
+					shape.x = step.x;
+					shape.y = step.y;
+					missedSteps = 0;
 				} else {
-					var step = desiredLoction.steps.shift();
-					step.x *= pixelsPerTile;
-					step.y *= pixelsPerTile;
-					spriteData.setDegrees(Math.angleBetweenTwoPoints(step, shape));
-					if(!TacoGame.Map.isOccupied(step.x, step.y, shape.radius, id)) {
-						shape.x = step.x;
-						shape.y = step.y;
+					missedSteps++;
+					if(missedSteps > 5) {
 						missedSteps = 0;
-					} else {
-						missedSteps++;
-						if(missedSteps > 5) {
-							missedSteps = 0;
-							setDestination(desiredLoction);
-							return;
-						}
-						step.x /= pixelsPerTile;
-						step.y /= pixelsPerTile;
-						desiredLoction.steps.unshift(step);
+						setDestination(desiredLoction);
+						return;
 					}
+					step.x /= pixelsPerTile;
+					step.y /= pixelsPerTile;
+					desiredLoction.steps.unshift(step);
 				}
 			}
-		},
-		
-		setDestination : setDestination
+		}
+	};
+	
+	this.toObject = function() {
+		return {
+			x: shape.x,
+			y: shape.y,
+			r: shape.radius,
+			id: id,
+			playerId: playerId,
+			type: type
+		};
 	}
+		
+	this.setDestination = setDestination;
 }
 
 //One per session
@@ -395,43 +497,52 @@ TacoGame.WorldSimulator = new function () {
 }
 window.addEventListener("load", TacoGame.WorldSimulator.init);
 
-var zealotSprite = new function () {
-	var internal = this;
-	
-	this.imgURL = "http://imageshack.us/a/img708/1269/zealotx.png";
-	this.startX = 25;
-	this.startY = 25;
-	this.width = 80;
-	this.height = 80;
-	this.spaceHeight = 128;
-	this.spaceWidth = 128;
+TacoGame.Sprite = function (internal) {
 
-	internal.actions = [
-		{min : 5, max : 6},
-		{min : 5, max : 13},
-		{min : 0, max : 5}
-	];
-	this.getMinMax = function(action) {
-		return internal.actions[action] || false;
-	}
-	this.drawDeath = function () {
-		for(var i = 0; i < 7; i++) {
-			var offsetY = internal.startY + (internal.spaceHeight * 13);
-			var offsetX = internal.startX + (internal.spaceWidth * i);
-			drawCurrentOnTimeout(offsetX, offsetY, false, time * i);
-		}
-	}
-}
-
-var MarineSprite = function () {
-	var internal = this;
-	
 	this.img; //Set by loader
 	this.offsetX = 0;
 	this.offsetY = 0;
+	this.width = 80;
+	this.height = 80;
+	this.fixX = 40;
+	this.fixY = 50;
+	this.scaleNegative = false;
+	
+	this.setDegrees = function (newDegrees) {
+		internal.degrees = newDegrees;
+	};
+	
+	this.gone = function () {
+		return internal.gone;
+	}
+	
+	this.died = function () {
+		internal.action = 3;
+		internal.died = true;
+	};
+	
+	this.setAction = function (newAction) {
+		internal.step = 0;
+		internal.action = newAction;
+	};
+};
+
+var MarineSprite = function () {
+	var me = {
+		action : 0,
+		step : 0,
+		died : false,
+		degrees : 0,
+		gone: false
+	};
+	
+	TacoGame.Sprite.call(this, me);
+	var sprite = this;
+
 	this.width = 64;
 	this.height = 64;
-	this.scaleNegative = false;
+	this.fixX = 32;
+	this.fixY = 42;
 	
 	var startX = 0;
 	var startY = 0;
@@ -442,94 +553,162 @@ var MarineSprite = function () {
 		{offset : 5, size : 1},//standing
 		{offset : 5, size : 7},//walking
 		{offset : 0, size : 5},//atacking
-		{offset : 0, size : 7}//dying
+		{offset : 0, size : 14}//dying
 	];
 	
-	var action = 0;
-	var step = 0;
-	var died = false;
-	var degrees = 0;
-	
-	this.setDegrees = function (newDegrees) {
-		degrees = newDegrees;
-	};
-	
-	this.died = function () {
-		died = true;
-	};
-	
-	this.setAction = function (newAction) {
-		step = 0;
-		action = newAction;
-	};
 	
 	this.step = function () {
-		step++;
-		if(died && (step > actions[action].size)) {
+		me.step++;
+		if(me.died && (me.step === (actions[me.action].size - 1))) {
+			console.log(me.action);
+			console.log(me.step);
+			me.gone = true;
 			return false;
 		}
-		step = step % actions[action].size + actions[action].offset;
-		if(action === 0 && Math.round(Math.random() * 30) == 15) {
-			degrees = Math.round(Math.random() * 360);
+		me.step = me.step % actions[me.action].size + actions[me.action].offset;
+		if(me.action === 0 && Math.round(Math.random() * 30) == 15) {
+			me.degrees = Math.round(Math.random() * 360);
 		}
 		return true;
 	};
 	
 	this.updateOffsets = function () {
-		internal.scaleNegative = false;
-		if(died) {
-			internal.offsetY = startY + (spaceHeight * 13);
-			internal.offsetX = startX + (spaceWidth * step);
+		sprite.scaleNegative = false;
+		if(me.died) {
+			sprite.offsetY = startY + (spaceHeight * 13);
+			sprite.offsetX = startX + (spaceWidth * Math.floor(me.step / 2));
 			return;
 		}
-		var column = Math.floor(degrees / 11.25);
+		var column = Math.floor(me.degrees / 11.25);
 		
 		if(column > 16) {
-			internal.scaleNegative = true;
+			sprite.scaleNegative = true;
 			column = 16 - (column % 16);
 		}
-		internal.offsetY = startY + (spaceHeight * step);
-		internal.offsetX = startX + (spaceWidth * column);
-	};
-	
-	this.drawDeath = function () {
-		for(var i = 0; i < 7; i++) {
-			var offsetY = internal.startY + (internal.spaceHeight * 13);
-			var offsetX = internal.startX + (internal.spaceWidth * i);
-			drawCurrentOnTimeout(offsetX, offsetY, false, time * i);
-		}
+		sprite.offsetY = startY + (spaceHeight * me.step);
+		sprite.offsetX = startX + (spaceWidth * column);
 	};
 
 }
 MarineSprite.prototype.imgURL = "sprites/marinez.png";
 
-var zerglingSprite = new function () {
-	var internal = this;
-	this.imgURL = "http://img28.imageshack.us/img28/5176/zergling.png";
-	this.startX = 25;
-	this.startY = 25;
-	this.width = 80;
-	this.height = 80;
-	this.spaceHeight = 128;
-	this.spaceWidth = 128;
-	this.actions = [
-		{min : 5, max : 6},
-		{min : 5, max : 12},
-		{min : 0, max : 5},
-		{min : 12, max : 17},
-	];
-	this.getMinMax = function(action) {
-		return this.actions[action] || false;
-	}
+
+var ZerglingSprite = function () {
+	var me = {
+		action : 0,
+		step : 0,
+		died : false,
+		degrees : 0,
+		gone: false
+	};
 	
-	this.drawDeath = function () {
-		for(var i = 0; i < 7; i++) {
-			var offsetY = internal.startY + (internal.spaceHeight * 17);
-			var offsetX = internal.startX + (internal.spaceWidth * i);
-			drawCurrentOnTimeout(offsetX, offsetY, false, time * i);
+	TacoGame.Sprite.call(this, me);
+	var sprite = this;
+		
+	var startX = 25;
+	var startY = 25;
+	var spaceHeight = 128;
+	var spaceWidth = 128;
+	
+	var actions = [
+		{offset : 5, size : 1},//standing
+		{offset : 5, size : 7},//walking
+		{offset : 0, size : 5},//atacking
+		{offset : 0, size : 7}//dying
+	];
+	
+	
+	this.step = function () {
+		me.step++;
+		if(me.died && (me.step > actions[me.action].size)) {
+			return false;
 		}
-	}
+		me.step = me.step % actions[me.action].size + actions[me.action].offset;
+		if(me.action === 0 && Math.round(Math.random() * 30) == 15) {
+			me.degrees = Math.round(Math.random() * 360);
+		}
+		return true;
+	};
+	
+	this.updateOffsets = function () {
+		sprite.scaleNegative = false;
+		if(me.died) {
+			sprite.offsetY = startY + (spaceHeight * 17);
+			sprite.offsetX = startX + (spaceWidth * me.step);
+			return;
+		}
+		var column = Math.floor(me.degrees / 11.25);
+		
+		if(column > 16) {
+			sprite.scaleNegative = true;
+			column = 16 - (column % 16);
+		}
+		sprite.offsetY = startY + (spaceHeight * me.step);
+		sprite.offsetX = startX + (spaceWidth * column);
+	};
+
 }
+ZerglingSprite.prototype.imgURL = "http://img28.imageshack.us/img28/5176/zergling.png";
+
+
+
+var ZealotSprite = function () {
+	var me = {
+		action : 0,
+		step : 0,
+		died : false,
+		degrees : 0,
+		gone: false
+	};
+	
+	TacoGame.Sprite.call(this, me);
+	var sprite = this;
+	
+	var startX = 25;
+	var startY = 25;
+	var spaceHeight = 128;
+	var spaceWidth = 128;
+	
+	var actions = [
+		{offset : 5, size : 1},//standing
+		{offset : 5, size : 8},//walking
+		{offset : 0, size : 5},//atacking
+		{offset : 0, size : 7}//dying
+	];
+	
+	
+	this.step = function () {
+		me.step++;
+		if(me.died && (me.step > actions[me.action].size)) {
+			me.gone = true;
+			return false;
+		}
+		me.step = me.step % actions[me.action].size + actions[me.action].offset;
+		if(me.action === 0 && Math.round(Math.random() * 30) == 15) {
+			me.degrees = Math.round(Math.random() * 360);
+		}
+		return true;
+	};
+	
+	this.updateOffsets = function () {
+		sprite.scaleNegative = false;
+		if(me.died) {
+			sprite.offsetY = startY + (spaceHeight * 13);
+			sprite.offsetX = startX + (spaceWidth * me.step);
+			return;
+		}
+		var column = Math.floor(me.degrees / 11.25);
+		
+		if(column > 16) {
+			sprite.scaleNegative = true;
+			column = 16 - (column % 16);
+		}
+		sprite.offsetY = startY + (spaceHeight * me.step);
+		sprite.offsetX = startX + (spaceWidth * column);
+	};
+
+}
+ZealotSprite.prototype.imgURL = "sprites/zealotx.png";
 
 var workerPool = {
 	a0 : new Worker("script/AStar.js"),
@@ -539,7 +718,7 @@ var workerPool = {
 	next : 1,
 	onmessage : function (message) {
 		var messageData = JSON.parse(message.data);
-		console.log((new Date()).getTime() - pathFindingQueue[messageData.id + "time"]);
+		//console.log((new Date()).getTime() - pathFindingQueue[messageData.id + "time"]);
 		pathFindingQueue[messageData.id](messageData.path);
 		delete pathFindingQueue[messageData.id];
 		delete pathFindingQueue[messageData.id + "time"];

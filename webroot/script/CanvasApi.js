@@ -224,7 +224,7 @@ TacoGame.CanvasApi = new function () {
 		ctx.beginPath();
 		ctx.rect(padding, top, sideLength, sideLength);
 		ctx.strokeStyle = "#7D4404";
-		ctx.fillStyle = "#00B82E";
+		ctx.fillStyle = "#008521";
 		ctx.lineWidth = "3";
 		ctx.stroke();
 		ctx.fill();

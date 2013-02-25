@@ -234,6 +234,7 @@ TacoGame.UserInput = new function () {
 	
 	//Creates a Command for the gameEngine, passes on the animation if one exists
 	function handleEvent(event) {
+		event.owner = TacoGame.Player.id;
 		
 		if(event.color) {
 			var eventClone = {};

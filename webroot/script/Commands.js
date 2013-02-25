@@ -30,7 +30,7 @@ TacoGame.UserInput.UserCommand = function (event, commit, revert) {
 	
 	//Check if this command needs to be synced with others
 	this.needsSync = function() {
-		return true;
+		return false;
 	}
 }
 
@@ -48,22 +48,14 @@ TacoGame.UserInput.UserCommandClick = function (event) {
 	}
 	//When the user does the action
 	function commit() {
-		TacoGame.Map.selectEntities(new TacoGame.Rectangle(event.x - 4, event.y - 4, 8, 8), event.shift);
-	}
-	
-	//Check if this command needs to be synced with others
-	this.needsSync = function() {
-		return true;
+		TacoGame.Map.selectEntities(new TacoGame.Rectangle(event.x - 4, event.y - 4, 8, 8), event.shift, true);
 	}
 }
-TacoGame.UserInput.UserCommandClick.prototype = new TacoGame.UserInput.UserCommand();
-
 
 TacoGame.UserInput.UserCommandkeypress = function (event) {
 	TacoGame.UserInput.UserCommand.call(this, event);
+	
 }
-TacoGame.UserInput.UserCommandkeypress.prototype = new TacoGame.UserInput.UserCommand();
-
 
 TacoGame.UserInput.UserCommandMove = function (event) {
 	TacoGame.UserInput.UserCommand.call(this, event, commit);
@@ -72,33 +64,15 @@ TacoGame.UserInput.UserCommandMove = function (event) {
 	function commit() {
 		TacoGame.Map.setDestination(event);
 	}
-	
-	//Check if this command needs to be synced with others
-	this.needsSync = function() {
-		return true;
-	}
 }
-TacoGame.UserInput.UserCommandMove.prototype = new TacoGame.UserInput.UserCommand();
-
 
 TacoGame.UserInput.UserCommandSelect = function (event) {
 	TacoGame.UserInput.UserCommand.call(this, event, commit);
 	//Check if this command needs to be synced with others
 	function commit() {
-		TacoGame.Map.selectEntities(new TacoGame.Rectangle(event.x, event.y, event.width, event.height), event.shift);
-	}
-	
-	//Check if this command needs to be synced with others
-	this.needsSync = function() {
-		return true;
+		TacoGame.Map.selectEntities(new TacoGame.Rectangle(event.x, event.y, event.width, event.height), event.shift, false);
 	}
 }
-TacoGame.UserInput.UserCommandSelect.prototype = new TacoGame.UserInput.UserCommand();
-
-TacoGame.UserInput.UserCommandKeypress = function (event) {
-	TacoGame.UserInput.UserCommand.call(this, event);
-}
-TacoGame.UserInput.UserCommandKeypress.prototype = new TacoGame.UserInput.UserCommand();
 
 TacoGame.UserInput.UserCommandScroll = function (event) {
 	TacoGame.UserInput.UserCommand.call(this, event, commit, revert);
@@ -113,4 +87,24 @@ TacoGame.UserInput.UserCommandScroll = function (event) {
 		TacoGame.Map.scrollViewPort({up:event.down,down:event.up,right:event.left,left:event.right});
 	}
 }
-TacoGame.UserInput.UserCommandScroll.prototype = new TacoGame.UserInput.UserCommand();
+
+TacoGame.UserInput.UserCommandMoveUnit = function (event) {
+	TacoGame.UserInput.UserCommand.call(this, event, commit, revert);
+
+	
+	//When the user does the action
+	function commit() {
+		TacoGame.Map.setUnitDestination(event.unit, event.end);
+	}
+	
+	//To undo an action
+	function revert() {
+		TacoGame.Map.setUnitDestination(event.unit, event.start);
+	}
+	
+	
+	//Check if this command needs to be synced with others
+	this.needsSync = function() {
+		return true;
+	}
+}
