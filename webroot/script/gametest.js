@@ -75,19 +75,52 @@ TacoGame.Map = new function () {
 	}
 	
 	function loadSprites() {
+		var loaded = 0;
+		TacoGame.Utils.loadImage(MarineSprite.prototype.imgURLGreen,
+		function (image) {
+			loaded++;
+			MarineSprite.prototype.gImg = image;
+			checkDoneLoading();
+		});
+		TacoGame.Utils.loadImage(MarineSprite.prototype.imgURLRed,
+		function (image) {
+			loaded++;
+			MarineSprite.prototype.rImg = image;
+			checkDoneLoading();
+		});
 		TacoGame.Utils.loadImage(ZealotSprite.prototype.imgURL,
 		function (image) {
+			loaded++;
 			ZealotSprite.prototype.img = image;
-		});
-		TacoGame.Utils.loadImage(MarineSprite.prototype.imgURL,
-		function (image) {
-			MarineSprite.prototype.img = image;
+			checkDoneLoading();
 		});
 		TacoGame.Utils.loadImage(ZerglingSprite.prototype.imgURL,
 		function (image) {
+			loaded++;
 			ZerglingSprite.prototype.img = image;
+			checkDoneLoading();
 		});
 		
+		function checkDoneLoading() {
+			if(loaded < 4) {
+				return;
+			}
+			function randomInt(max, min) {
+				var num = (Math.random() * (max - min)) + min;
+				num -= num % 10;
+				return num
+			}
+			var marineRadius = 9;
+			for(var i = 0; i < 5; i++) {
+				do {
+					var x = randomInt(0, 1000);
+					var y = randomInt(0, 1000);
+				} while(TacoGame.Map.isOccupied(x, y, marineRadius, 10));
+				var id = (new Date()).getTime() + "" + Math.round(Math.random() * 600);
+				addEntity({x:x,y:y,r:marineRadius,type:"MarineSprite",playerId:TacoGame.Player.id,id:id});
+			}
+			sendRequest(request({lib:"commander",func:"getUnits"}));
+		}
 	}
 	
 	function killUnit(unit) {
@@ -132,21 +165,6 @@ TacoGame.Map = new function () {
 			TacoGame.Utils.addServerListener('resendUnits', initMyUnits);
 			TacoGame.Utils.addServerListener('removeUnit', killUnit);
 			
-			function randomInt(max, min) {
-				var num = (Math.random() * (max - min)) + min;
-				num -= num % 10;
-				return num
-			}
-			var marineRadius = 9;
-			for(var i = 0; i < 2; i++) {
-				do {
-					var x = randomInt(0, 1000);
-					var y = randomInt(0, 1000);
-				} while(TacoGame.Map.isOccupied(x, y, marineRadius, 10));
-				var id = (new Date()).getTime() + "" + Math.round(Math.random() * 600);
-				addEntity({x:x,y:y,r:marineRadius,type:"MarineSprite",playerId:TacoGame.Player.id,id:id});
-			}
-			sendRequest(request({lib:"commander",func:"getUnits"}));
 		},
 		
 		destroy : function () {
@@ -340,8 +358,10 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	
 	var desiredLoction = null;
 	var miniMapColor = "#E30000";
+	spriteData.img = spriteData.rImg || spriteData.img;
 	if(playerId === TacoGame.Player.id) {
 		miniMapColor = "#00FF40";
+		spriteData.img = spriteData.gImg || spriteData.img;
 	}
 	var id = unitId;
 	var missedSteps = 0;
@@ -500,6 +520,8 @@ window.addEventListener("load", TacoGame.WorldSimulator.init);
 TacoGame.Sprite = function (internal) {
 
 	this.img; //Set by loader
+	this.rImg; //Set by loader
+	this.gImg; //Set by loader
 	this.offsetX = 0;
 	this.offsetY = 0;
 	this.width = 80;
@@ -590,7 +612,8 @@ var MarineSprite = function () {
 	};
 
 }
-MarineSprite.prototype.imgURL = "sprites/marinez.png";
+MarineSprite.prototype.imgURLGreen = "sprites/marinezGreen.png";
+MarineSprite.prototype.imgURLRed = "sprites/marinezRed.png";
 
 
 var ZerglingSprite = function () {

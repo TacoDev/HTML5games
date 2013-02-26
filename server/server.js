@@ -149,6 +149,7 @@ socketServer.on('request', function(request) {
 function handleRequest(response, data, socket) {
 	try {
 		var lib = {'socket':socket,'db':db,'events':events};
+		//var lib = {'socket':socket,'events':events};
 		var answer = requestHandler.handle(JSON.parse(data), lib);
 		if(answer == null) {
 			answer = '';
