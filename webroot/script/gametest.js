@@ -149,7 +149,7 @@ TacoGame.Map = new function () {
 	}
 	
 	function checkAttack() {
-	
+		//Should only check your units, and fire an event
 		for (var i = 0; i < entities.length; i++) {
 			if(entities[i].canAttack()) {
 				for (var k = 0; k < entities.length; k++) {
@@ -645,8 +645,8 @@ var MarineSprite = function () {
 	this.unitSpeed = 1;
 	
 	this.maxHealth = 50;
-	this.healthWidth = 18;
 	this.healthX = 9;
+	this.healthWidth = 18;
 	this.healthY = 27;
 	
 	this.damage = 5;
