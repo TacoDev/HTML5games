@@ -4,7 +4,7 @@
 exports.database = new function() {
 	var dbName = 'visaevus';
 	var dbPort = 27017;
-	var dbIP = "192.168.1.143";
+	var dbIP = "192.168.1.144";
 	var db = null;
 	
 	var mongodb = require('mongodb');
