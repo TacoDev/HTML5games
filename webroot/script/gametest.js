@@ -148,19 +148,32 @@ TacoGame.Map = new function () {
 		entities.push(new TacoGame.Entity(new TacoGame.Circle(params.x, params.y, params.r), params.type, params.id, params.playerId));
 	}
 	
-	function stepEntities() {
+	function checkAttack() {
+	
 		for (var i = 0; i < entities.length; i++) {
-			entities[i].step();
+			if(entities[i].canAttack()) {
+				for (var k = 0; k < entities.length; k++) {
+					if(entities[i].playerId !== entities[k].playerId) {
+						var space = Math.distanceBetween(entities[i].getShape(), entities[k].getShape());
+						if(space <= entities[i].range && entities[i].canAttack()) {
+							var angle = Math.angleBetweenTwoPoints(entities[k].getShape(), entities[i].getShape());
+							entities[i].attack(angle);
+							entities[k].attacked(entities[i].damage);
+							break;
+						}
+					}
+				}
+			}
 		}
 	}
-	
+		
 	return {
 		init : function () {
 			canvas = document.getElementById('gameScreen');
 			window.addEventListener("resize", handleResize);
 			handleResize();
 			loadSprites();
-			TacoGame.Utils.addListener('stepWorld', stepEntities);
+			TacoGame.Utils.addListener('checkAttack', checkAttack);
 			TacoGame.Utils.addServerListener('addUnit', addEntity);
 			TacoGame.Utils.addServerListener('resendUnits', initMyUnits);
 			TacoGame.Utils.addServerListener('removeUnit', killUnit);
@@ -349,7 +362,7 @@ window.addEventListener("unload", TacoGame.Map.destroy);
 
 
 TacoGame.Entity = function (_shape, type, unitId, playerId) {
-	
+	var me = this;
 	var spriteData = new window[type]();
 	//Valid shapes are CIRCLE and POYLGON, both are 2d
 	var shape = _shape || {
@@ -365,6 +378,9 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	}
 	var id = unitId;
 	var missedSteps = 0;
+	var health = spriteData.maxHealth;
+	
+	TacoGame.Utils.addListener("step" + Math.round(100 / spriteData.unitSpeed), step);
 	
 	function setDestination (end) {
 		var grid = [];
@@ -388,12 +404,67 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 		}, 1);
 	}
 	
+	function step() {
+		spriteData.step();
+		if(desiredLoction && !spriteData.isDead()) {
+			if(desiredLoction.x === shape.x &&
+				desiredLoction.y === shape.y ||
+				desiredLoction.steps.length === 0) {
+				desiredLoction = null;
+				spriteData.setAction(0);
+				return;
+			} else {
+				var step = desiredLoction.steps.shift();
+				step.x *= pixelsPerTile;
+				step.y *= pixelsPerTile;
+				spriteData.setDegrees(Math.angleBetweenTwoPoints(step, shape));
+				if(!TacoGame.Map.isOccupied(step.x, step.y, shape.radius, id)) {
+					shape.x = step.x;
+					shape.y = step.y;
+					missedSteps = 0;
+				} else {
+					missedSteps++;
+					if(missedSteps > 5) {
+						missedSteps = 0;
+						setDestination(desiredLoction);
+						return;
+					}
+					step.x /= pixelsPerTile;
+					step.y /= pixelsPerTile;
+					desiredLoction.steps.unshift(step);
+				}
+			}
+		}
+	}
+	
 	//public interface
 	this.selected = false;
 	this.id = id;
 	this.playerId = playerId;
 	this.kill = spriteData.died;
 	this.gone = spriteData.gone;
+	this.damage = spriteData.damage;
+	this.range = spriteData.range;
+	this.sight = spriteData.sight;
+	
+	this.attacked = function (damage) {
+		health -= damage;
+		if(health <= 0) {
+			health = 0;
+			me.kill();
+			me.selected = false;
+		}
+	}
+	
+	this.canAttack = function () {
+		return (spriteData.getAction() === 0);
+	};
+	
+	this.attack = function (degrees) {
+		spriteData.setAction(2);
+		setTimeout(function () {spriteData.setAction(0)}, spriteData.coolDown * 1000);
+		spriteData.setDegrees(degrees);
+	};
 	
 	this.getShape = function () {
 		return shape;
@@ -427,42 +498,18 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 			tY: shape.y,
 			radius: shape.radius,
 			scaleNegative: spriteData.scaleNegative,
-			selected : this.selected
+			selected : me.selected,
+			health: health,
+			maxHealth: spriteData.maxHealth,
+			healthWidth: spriteData.healthWidth,
+			healthX: shape.x - viewPort.x - spriteData.healthX,
+			healthY: shape.y - viewPort.y - spriteData.healthY,
+			range: spriteData.range,
+			dead: spriteData.isDead()
 		}
 	};
 		
-	this.step = function () {
-		spriteData.step();
-		if(desiredLoction) {
-			if(desiredLoction.x === shape.x &&
-				desiredLoction.y === shape.y ||
-				desiredLoction.steps.length === 0) {
-				desiredLoction = null;
-				spriteData.setAction(0);
-				return;
-			} else {
-				var step = desiredLoction.steps.shift();
-				step.x *= pixelsPerTile;
-				step.y *= pixelsPerTile;
-				spriteData.setDegrees(Math.angleBetweenTwoPoints(step, shape));
-				if(!TacoGame.Map.isOccupied(step.x, step.y, shape.radius, id)) {
-					shape.x = step.x;
-					shape.y = step.y;
-					missedSteps = 0;
-				} else {
-					missedSteps++;
-					if(missedSteps > 5) {
-						missedSteps = 0;
-						setDestination(desiredLoction);
-						return;
-					}
-					step.x /= pixelsPerTile;
-					step.y /= pixelsPerTile;
-					desiredLoction.steps.unshift(step);
-				}
-			}
-		}
-	};
+	
 	
 	this.toObject = function() {
 		return {
@@ -494,10 +541,20 @@ TacoGame.WorldSimulator = new function () {
 
 	}
 	
+	function checkAttack() {
+		TacoGame.Utils.fireEvent("checkAttack", {step:step});
+	}
+	
 	function stepWorld() {
 		step++;
 		TacoGame.Utils.fireEvent("stepWorld", {step:step});
 	}
+	
+	function step100() {
+		TacoGame.Utils.fireEvent("step100", {step:step});
+	}
+	
+	setInterval(step100, 100);
 	
 	//This is the api for the simulator, may get rather large
 	return {
@@ -511,6 +568,7 @@ TacoGame.WorldSimulator = new function () {
 		
 		init : function () {
 			setInterval(stepWorld, 100);
+			setInterval(checkAttack, 15);
 			TacoGame.Utils.addServerListener('commandQueued', executeCommand);
 		}
 	}
@@ -518,7 +576,7 @@ TacoGame.WorldSimulator = new function () {
 window.addEventListener("load", TacoGame.WorldSimulator.init);
 
 TacoGame.Sprite = function (internal) {
-
+	var me = this;
 	this.img; //Set by loader
 	this.rImg; //Set by loader
 	this.gImg; //Set by loader
@@ -529,6 +587,15 @@ TacoGame.Sprite = function (internal) {
 	this.fixX = 40;
 	this.fixY = 50;
 	this.scaleNegative = false;
+	this.maxHealth;
+	this.healthWidth;
+	this.healthX;
+	this.healthY;
+	this.unitSpeed = 1;
+	this.damage = 5;
+	this.range = 5;
+	this.sight = 7;
+	this.coolDown = 1;
 	
 	this.setDegrees = function (newDegrees) {
 		internal.degrees = newDegrees;
@@ -541,11 +608,20 @@ TacoGame.Sprite = function (internal) {
 	this.died = function () {
 		internal.action = 3;
 		internal.died = true;
+		me.setAction = function () {};
+	};
+	
+	this.isDead = function () {
+		return internal.died;
 	};
 	
 	this.setAction = function (newAction) {
 		internal.step = 0;
 		internal.action = newAction;
+	};
+	
+	this.getAction = function () {
+		return internal.action;
 	};
 };
 
@@ -566,6 +642,18 @@ var MarineSprite = function () {
 	this.fixX = 32;
 	this.fixY = 42;
 	
+	this.unitSpeed = 1;
+	
+	this.maxHealth = 50;
+	this.healthWidth = 18;
+	this.healthX = 9;
+	this.healthY = 27;
+	
+	this.damage = 5;
+	this.range = 100;
+	this.sight = 7;
+	this.coolDown = 1;
+	
 	var startX = 0;
 	var startY = 0;
 	var spaceHeight = 64;
@@ -582,8 +670,6 @@ var MarineSprite = function () {
 	this.step = function () {
 		me.step++;
 		if(me.died && (me.step === (actions[me.action].size - 1))) {
-			console.log(me.action);
-			console.log(me.step);
 			me.gone = true;
 			return false;
 		}
@@ -734,10 +820,6 @@ var ZealotSprite = function () {
 ZealotSprite.prototype.imgURL = "sprites/zealotx.png";
 
 var workerPool = {
-	a0 : new Worker("script/AStar.js"),
-	a1 : new Worker("script/AStar.js"),
-	a2 : new Worker("script/AStar.js"),
-	a3 : new Worker("script/AStar.js"),
 	next : 1,
 	onmessage : function (message) {
 		var messageData = JSON.parse(message.data);
@@ -750,10 +832,11 @@ var workerPool = {
 
 var pathFindingQueue = {};
 
-workerPool["a0"].onmessage = workerPool.onmessage;
-workerPool["a1"].onmessage = workerPool.onmessage;
-workerPool["a2"].onmessage = workerPool.onmessage;
-workerPool["a3"].onmessage = workerPool.onmessage;
+for(var i = 0; i < 12; i++) {
+	workerPool["a" + i] = new Worker("script/AStar.js");
+	workerPool["a" + i].onmessage = workerPool.onmessage;
+}
+
 
 TacoGame.startAStar = function (grid, start, end, diagonal, radius, heuristic, id, callback) {
 	TacoGame.Map.fillClosedPaths(grid, radius, id);

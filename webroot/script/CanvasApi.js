@@ -206,6 +206,30 @@ TacoGame.CanvasApi = new function () {
 				ctx.drawImage(entities[i].img, entities[i].offsetX, entities[i].offsetY, entities[i].width, entities[i].height, entities[i].x, entities[i].y, entities[i].width, entities[i].height);
 			}
 			ctx.restore();
+			if(entities[i].dead) {
+				continue;
+			}
+			ctx.save();
+			var helthPercent = entities[i].health / entities[i].maxHealth;
+			ctx.globalAlpha=0.7;
+			ctx.fillStyle = "#FF0000";
+			ctx.fillRect (entities[i].healthX, entities[i].healthY, entities[i].healthWidth, 4);
+			ctx.fillStyle = "#00FF00";
+			ctx.fillRect (entities[i].healthX, entities[i].healthY, helthPercent * entities[i].healthWidth, 4);
+			ctx.restore();
+			ctx.save();
+			if(entities[i].radius && entities[i].selected) {
+				ctx.beginPath();
+				ctx.fillStyle = "#FF0000";
+				ctx.strokeStyle = "#FF000";
+				ctx.setTransform(1.3,0,0,.7, -viewport.x, -viewport.y);
+				ctx.beginPath();
+				ctx.arc(entities[i].tX / 1.3 , entities[i].tY / .7, entities[i].range, 0, 2*Math.PI);
+				ctx.stroke();
+				ctx.globalAlpha = .2;
+				ctx.fill();
+			}
+			ctx.restore();
 		}
 	}
 	
