@@ -34,13 +34,6 @@ httpServer.listen(serverport, function() {
     console.log((new Date()) + ' Server is listening on port ' + serverport);
 });
 
-//websocket
-/*
-var socketHTTPServer = http.createServer();
-socketHTTPServer.listen(serverport, function() {
-    console.log((new Date()) + ' Server is listening on port ' + serverport);
-});*/
-
 var socketServer = new ws({
 	httpServer: httpServer,
 	fragmentOutgoingMessages: false
