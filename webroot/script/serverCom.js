@@ -108,7 +108,9 @@ TacoGame.Comm.ServerConnection = function (response) {
 				if (this.readyState != 4) return;
 				if (this.status > 399) {
 					var errObj = {'responseText':"error:" + this.status + ' ' + this.statusText};
-					console.log(errObj);
+					if(console) {
+						console.log(errObj);
+					}
 				} else {
 					response(this);
 				}
@@ -129,17 +131,27 @@ TacoGame.Comm.ServerConnection = function (response) {
 		var timer;
 
 		// attempt to connect using a web socket
-		var host = 'ws://' + document.location.hostname + ':' + document.location.port;
+		var host = 'ws://' + document.location.hostname;
+		if(document.location.port) {
+			host = host + ':' + document.location.port
+		}
 
 		try{
 			socket = new WebSocket(host, 'visaevus-client');
 			socket.onmessage = response;
 			socket.onclose = closed;
+			socket.onerror = logError;
 		}
 		catch(ex) {
 			valid = false;
 		}
 
+		function logError() {
+			if(console) {
+				console.log(arguments);
+			}
+		}
+		
 		function closed() {
 			valid = false;
 			closeListener();
