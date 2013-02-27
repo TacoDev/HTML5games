@@ -129,7 +129,7 @@ TacoGame.Comm.ServerConnection = function (response) {
 		var timer;
 
 		// attempt to connect using a web socket
-		var host = 'ws://' + document.location.hostname + ':8090';
+		var host = 'ws://' + document.location.hostname + ':' + document.location.port;
 
 		try{
 			socket = new WebSocket(host, 'visaevus-client');

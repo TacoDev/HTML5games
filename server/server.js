@@ -25,23 +25,24 @@ var extTypes = {
 	"txt" : "text/plain",
 	"xml" : "application/xml"
 };
-
+var serverport = 8080;
 // Create the servers
 //http
 var httpServer = http.createServer();
 httpServer.addListener("request", httpConnection);
-httpServer.listen(8080, function() {
-    console.log((new Date()) + ' Server is listening on port 8080');
+httpServer.listen(serverport, function() {
+    console.log((new Date()) + ' Server is listening on port ' + serverport);
 });
 
 //websocket
+/*
 var socketHTTPServer = http.createServer();
-socketHTTPServer.listen(8090, function() {
-    console.log((new Date()) + ' Server is listening on port 8090');
-});
+socketHTTPServer.listen(serverport, function() {
+    console.log((new Date()) + ' Server is listening on port ' + serverport);
+});*/
 
 var socketServer = new ws({
-	httpServer: socketHTTPServer,
+	httpServer: httpServer,
 	fragmentOutgoingMessages: false
 });
 
