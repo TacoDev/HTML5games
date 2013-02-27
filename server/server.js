@@ -25,7 +25,7 @@ var extTypes = {
 	"txt" : "text/plain",
 	"xml" : "application/xml"
 };
-var serverport = 8080;
+var serverport = process.env.port || 8080;
 // Create the servers
 //http
 var httpServer = http.createServer();
