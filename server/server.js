@@ -125,7 +125,7 @@ function httpConnection(request, response) {
 
 socketServer.on('request', function(request) {
     var connection = request.accept('visaevus-client', request.origin);
-	
+	console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' connecting.');
 	connection.write = connection.sendUTF;
     connection.on('message', function(message) {
 		try {
