@@ -2,7 +2,7 @@
 var http = require("http");
 var url = require("url");
 var fs = require("fs");
-var db = require('./database').database;
+//var db = require('./database').database;
 //https://github.com/Worlize/WebSocket-Node
 var ws = require('websocket').server;
 var querystring = require('querystring');
@@ -94,7 +94,7 @@ function httpConnection(request, response) {
 		if (file == '/') {
 			file += 'index.html';
 		}
-		return '../webroot' + file;
+		return './webroot' + file;
 	}
 
 	function handleHTTPRequest() {
@@ -142,8 +142,8 @@ socketServer.on('request', function(request) {
 
 function handleRequest(response, data, socket) {
 	try {
-		var lib = {'socket':socket,'db':db,'events':events};
-		//var lib = {'socket':socket,'events':events};
+		//var lib = {'socket':socket,'db':db,'events':events};
+		var lib = {'socket':socket,'events':events};
 		var answer = requestHandler.handle(JSON.parse(data), lib);
 		if(answer == null) {
 			answer = '';
