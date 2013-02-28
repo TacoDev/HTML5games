@@ -69,13 +69,13 @@ TacoGame.CanvasApi = new function () {
 			ctx.strokeStyle = gameEvent.color;
 			
 			ctx.beginPath();
-			ctx.arc(gameEvent.x, gameEvent.y,gameEvent.timeLeft / 20,0,2*Math.PI);
+			ctx.arc(gameEvent.rX, gameEvent.rY,gameEvent.timeLeft / 20,0,2*Math.PI);
 			ctx.closePath();
 			ctx.stroke();
 			
 			ctx.beginPath();
 			ctx.globalAlpha = gameEvent.timeLeft / 1000;
-			ctx.arc(gameEvent.x, gameEvent.y,gameEvent.timeLeft / 20,0,2*Math.PI);
+			ctx.arc(gameEvent.rX, gameEvent.rY,gameEvent.timeLeft / 20,0,2*Math.PI);
 			ctx.closePath();
 			ctx.fill();
 			
@@ -220,14 +220,21 @@ TacoGame.CanvasApi = new function () {
 			ctx.save();
 			if(entities[i].radius && entities[i].selected) {
 				ctx.beginPath();
-				ctx.fillStyle = "#FF0000";
-				ctx.strokeStyle = "#FF000";
+				ctx.strokeStyle = "#C90000";
 				ctx.setTransform(1.3,0,0,.7, -viewport.x, -viewport.y);
 				ctx.beginPath();
 				ctx.arc(entities[i].tX / 1.3 , entities[i].tY / .7, entities[i].range, 0, 2*Math.PI);
 				ctx.stroke();
-				ctx.globalAlpha = .2;
-				ctx.fill();
+			}
+			ctx.restore();
+			ctx.save();
+			if(entities[i].radius && entities[i].selected) {
+				ctx.beginPath();
+				ctx.strokeStyle = "#0000DB";
+				ctx.setTransform(1.3,0,0,.7, -viewport.x, -viewport.y);
+				ctx.beginPath();
+				ctx.arc(entities[i].tX / 1.3 , entities[i].tY / .7, entities[i].sight, 0, 2*Math.PI);
+				ctx.stroke();
 			}
 			ctx.restore();
 		}

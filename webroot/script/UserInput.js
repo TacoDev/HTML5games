@@ -2,12 +2,24 @@
 TacoGame.UserInput = new function () {
 	
 	var wiggleRoom = 8;
-	var scrollWiggleRoom = 4;
+	var scrollWiggleRoom = 2;
 	var animationLengthMs = 300;
 	var animationSteps = 10;
 	var clickPosition = null;
 	var dragRectangle = null;
-	var scrollEvent = {up:false,down:false,right:false,left:false};
+	var scrollEvent = {
+			up:false,
+			down:false,
+			right:false,
+			left:false,
+			x:0,
+			y:0,
+			mouseDirections:0, //Max is 2
+			keyDirections:0, //Max is 2
+			directions:0, //Max is 2
+			color:scrollColor,
+			type: "Scroll"
+		};
 	var canvas;
 	var animations = [];
 	animations.staticEvents = {};
@@ -22,6 +34,8 @@ TacoGame.UserInput = new function () {
 			timeLeft : 100,
 			x:0,
 			y:0,
+			rX:0,
+			rY:0,
 			locked: false
 	};
 	var browserDependants = {
@@ -95,6 +109,8 @@ TacoGame.UserInput = new function () {
 		clickPosition = {
 			x: mouse.x,
 			y: mouse.y,
+			rX: mouse.rX,
+			rY: mouse.rY,
 			timeLeft: animationLengthMs,
 			color: selectColor,
 			type: "Click",
@@ -165,11 +181,51 @@ TacoGame.UserInput = new function () {
 	}
 		
 	function handleScroll() {
-		if(animations.staticEvents.scroll) {
-			var color = animations.staticEvents.scroll.color;
-			delete animations.staticEvents.scroll.color;
-			handleEvent(animations.staticEvents.scroll);
-			animations.staticEvents.scroll.color = color;
+		if(!scrollEvent.mouseDirections) {
+			scrollEvent.left = false;
+			scrollEvent.up = false;
+			scrollEvent.right = false;
+			scrollEvent.down = false;
+			scrollEvent.keyDirections = 0;
+			if(keysDown[37]) {
+				scrollEvent.keyDirections++;
+				scrollEvent.left = true;
+			}
+			if(keysDown[38]) {
+				scrollEvent.keyDirections++;
+				scrollEvent.up = true;
+			}
+			if(keysDown[39]) {
+				scrollEvent.keyDirections++;
+				scrollEvent.right = true;
+				if(scrollEvent.left) {
+					scrollEvent.keyDirections--;
+					if(keysDown[37].timeStamp > keysDown[39].timeStamp) {
+						scrollEvent.right = false;
+					} else {
+						scrollEvent.left = false;
+					}
+				}
+			}
+			if(keysDown[40]) {
+				scrollEvent.keyDirections++;
+				scrollEvent.down = true;
+				if(scrollEvent.up) {
+					scrollEvent.keyDirections--;
+					if(keysDown[38].timeStamp > keysDown[40].timeStamp) {
+						scrollEvent.down = false;
+					} else {
+						scrollEvent.up = false;
+					}
+				}
+			}
+		}
+		scrollEvent.directions = Math.max(scrollEvent.mouseDirections, scrollEvent.keyDirections);
+		if(scrollEvent.directions) {
+			var color = scrollEvent.color;
+			delete scrollEvent.color;
+			handleEvent(scrollEvent);
+			scrollEvent.color = color;
 		}
 	}
 	
@@ -178,10 +234,12 @@ TacoGame.UserInput = new function () {
 			return;
 		}
 		var viewPort = TacoGame.Map.getViewPort();
-		mouse.x += e[helper.movementX] || 0;
-		mouse.y += e[helper.movementY] || 0;
-		mouse.x = Math.max(Math.min(mouse.x, viewPort.width), 0);
-		mouse.y = Math.max(Math.min(mouse.y, viewPort.height), 0);
+		mouse.rX += e[helper.movementX] || 0;
+		mouse.rY += e[helper.movementY] || 0;
+		mouse.rX = Math.max(Math.min(mouse.rX, viewPort.width), 0);
+		mouse.rY = Math.max(Math.min(mouse.rY, viewPort.height), 0);
+		mouse.x = mouse.rX + viewPort.x;
+		mouse.y = mouse.rY + viewPort.y;
 	}
 	
 	function checkForScroll(event) {
@@ -190,30 +248,32 @@ TacoGame.UserInput = new function () {
 			down:false,
 			right:false,
 			left:false,
-			x:mouse.x,
-			y:mouse.y,
+			x:mouse.rX,
+			y:mouse.rY,
+			mouseDirections:0, //Max is 2
+			keyDirections:0, //Max is 2
 			directions:0, //Max is 2
 			color:scrollColor,
 			type: "Scroll"
 		};
 		if(scrollEvent.x <= scrollWiggleRoom) {
 			scrollEvent.left = true;
-			scrollEvent.directions++;
+			scrollEvent.mouseDirections++;
 		}
 		if(scrollEvent.x >= (canvas.width - scrollWiggleRoom)) {
 			scrollEvent.right = true;
-			scrollEvent.directions++;
+			scrollEvent.mouseDirections++;
 		}
 		if(scrollEvent.y <= scrollWiggleRoom) {
 			scrollEvent.up = true;
-			scrollEvent.directions++;
+			scrollEvent.mouseDirections++;
 		}
 		if(scrollEvent.y >= (canvas.height - scrollWiggleRoom)) {
 			scrollEvent.down = true;
-			scrollEvent.directions++;
+			scrollEvent.mouseDirections++;
 		}
 		
-		if(scrollEvent.directions) {
+		if(scrollEvent.mouseDirections) {
 			animations.staticEvents.scroll = scrollEvent;
 		} else {
 			delete animations.staticEvents.scroll;
@@ -221,7 +281,16 @@ TacoGame.UserInput = new function () {
 	}
 	
 	function handleKeyPress(event) {
-		handleEvent(event);
+		var keyPressEvent = {
+			char : String.fromCharCode(event.charCode),
+			charCase : event.char,
+			type: "KeyPress"
+			
+		};
+		if(event.shiftKey) {
+			handleKeyPress.charCase = handleKeyPress.charCase.toUpperCase();
+		}
+		handleEvent(keyPressEvent);
 	}
 	
 	function handleKeyDown(event) {
@@ -243,12 +312,8 @@ TacoGame.UserInput = new function () {
 			}
 			handleFade(eventClone);
 		}
-		if(event.x && event.y) {
-			event.x += TacoGame.Map.getViewPort().x;
-			event.y += TacoGame.Map.getViewPort().y;
-		}
 		//Commands are select, move attack, or hotkey
-		TacoGame.WorldSimulator.queueCommand(new TacoGame.UserInput["UserCommand" + event.type](event));
+		TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(event));
 	}
 	
 	// Handles when a user gets the cursor locked or unlocked by the game
@@ -271,8 +336,8 @@ TacoGame.UserInput = new function () {
 	function requestPointerLock(event) {
 		canvas[helper.requestPointerLock]();
 		if(!mouse.locked) {
-			mouse.x = event.clientX;
-			mouse.y = event.clientY;
+			mouse.rX = event.clientX;
+			mouse.rY = event.clientY;
 		}
 	}
 	

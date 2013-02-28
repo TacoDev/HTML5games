@@ -12,7 +12,7 @@ TacoGame.Player = new function () {
 	
 	this.id = Math.round(Math.random() * 9000 + 1000) + "-" + Math.round(Math.random() * 9000 + 1000) + "-" + Math.round(Math.random() * 9000 + 1000);
 }
-var width = 400;
+var width = 250;
 var pixelsPerTile = 10;
 
 //May be multiple maps in the future
@@ -113,8 +113,8 @@ TacoGame.Map = new function () {
 			var marineRadius = 9;
 			for(var i = 0; i < 5; i++) {
 				do {
-					var x = randomInt(0, 1000);
-					var y = randomInt(0, 1000);
+					var x = randomInt(20, 980);
+					var y = randomInt(20, 980);
 				} while(TacoGame.Map.isOccupied(x, y, marineRadius, 10));
 				var id = (new Date()).getTime() + "" + Math.round(Math.random() * 600);
 				addEntity({x:x,y:y,r:marineRadius,type:"MarineSprite",playerId:TacoGame.Player.id,id:id});
@@ -267,6 +267,15 @@ TacoGame.Map = new function () {
 			}
 		},
 		
+		applyAction : function (unit, action) {
+			for (var i = 0; i < entities.length; i++) {
+				if(entities[i].id === unit) {
+					entities[i]["handle" + action]();
+					return;
+				}
+			}
+		},
+		
 		deselectEntities : function () {
 			unitSelected = false;
 		},
@@ -337,7 +346,7 @@ TacoGame.Map = new function () {
 						end : event,
 						type : "MoveUnit"
 					}
-					TacoGame.WorldSimulator.queueCommand(new TacoGame.UserInput["UserCommand" + newEvent.type](newEvent));
+					TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(newEvent));
 				}
 			}
 		},
@@ -353,6 +362,15 @@ TacoGame.Map = new function () {
 		
 		isUnitSelected : function () {
 			return unitSelected;
+		},
+		
+		keyPressed : function (event) {
+			console.log(event);
+			for (var i = 0; i < entities.length; i++) {
+				if(entities[i].selected) {
+					entities[i].handleKeyPress(event);
+				}
+			}
 		}
 		
 	}
@@ -361,9 +379,54 @@ window.addEventListener("load", TacoGame.Map.init);
 window.addEventListener("unload", TacoGame.Map.destroy);
 
 
+//One per session
+TacoGame.WorldSimulator = new function () {
+
+	var commands = [];
+	var step = 0;
+	
+	function executeCommand(command) {
+		commands[command.order] = TacoGame.createCommand(command.event);
+		commands[command.order].fix(command);
+		commands[command.order].commit();
+	}
+	
+	function gameObject() {
+
+	}
+	
+	function checkAttack() {
+		TacoGame.Utils.fireEvent("checkAttack", {step:step});
+	}
+	
+	function stepWorld() {
+		step++;
+		TacoGame.Utils.fireEvent("stepWorld", {step:step});
+	}
+	
+	//This is the api for the simulator, may get rather large
+	return {
+		queueCommand : function (newCommand) {
+			if (newCommand.needsSync()) {
+				sendRequest(request({lib:"commander",func:"queueCommand"}, newCommand));
+			} else {
+				newCommand.commit();
+			}
+		},
+		
+		init : function () {
+			setInterval(stepWorld, 100);
+			setInterval(checkAttack, 15);
+			TacoGame.Utils.addServerListener('commandQueued', executeCommand);
+		}
+	}
+}
+window.addEventListener("load", TacoGame.WorldSimulator.init);
+
+
 TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	var me = this;
-	var spriteData = new window[type]();
+	var spriteData = new window[type](me);
 	//Valid shapes are CIRCLE and POYLGON, both are 2d
 	var shape = _shape || {
 		type:"undefined"
@@ -380,7 +443,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	var missedSteps = 0;
 	var health = spriteData.maxHealth;
 	
-	TacoGame.Utils.addListener("step" + Math.round(100 / spriteData.unitSpeed), step);
+	setTimeout(step, 100 / spriteData.unitSpeed);
 	
 	function setDestination (end) {
 		var grid = [];
@@ -405,6 +468,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	}
 	
 	function step() {
+		setTimeout(step, 100 / spriteData.unitSpeed);
 		spriteData.step();
 		if(desiredLoction && !spriteData.isDead()) {
 			if(desiredLoction.x === shape.x &&
@@ -414,24 +478,28 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 				spriteData.setAction(0);
 				return;
 			} else {
-				var step = desiredLoction.steps.shift();
-				step.x *= pixelsPerTile;
-				step.y *= pixelsPerTile;
-				spriteData.setDegrees(Math.angleBetweenTwoPoints(step, shape));
-				if(!TacoGame.Map.isOccupied(step.x, step.y, shape.radius, id)) {
-					shape.x = step.x;
-					shape.y = step.y;
+				var nextStep = desiredLoction.steps.shift();
+				nextStep.x *= pixelsPerTile;
+				nextStep.y *= pixelsPerTile;
+				spriteData.setDegrees(Math.angleBetweenTwoPoints(nextStep, shape));
+				if(!TacoGame.Map.isOccupied(nextStep.x, nextStep.y, shape.radius, id)) {
+					shape.x = nextStep.x;
+					shape.y = nextStep.y;
+					if(missedSteps) {
+						spriteData.setAction(1);
+					}
 					missedSteps = 0;
 				} else {
+					spriteData.setAction(0);
 					missedSteps++;
-					if(missedSteps > 5) {
+					if(missedSteps > 15) {
 						missedSteps = 0;
 						setDestination(desiredLoction);
 						return;
 					}
-					step.x /= pixelsPerTile;
-					step.y /= pixelsPerTile;
-					desiredLoction.steps.unshift(step);
+					nextStep.x /= pixelsPerTile;
+					nextStep.y /= pixelsPerTile;
+					desiredLoction.steps.unshift(nextStep);
 				}
 			}
 		}
@@ -441,11 +509,20 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	this.selected = false;
 	this.id = id;
 	this.playerId = playerId;
-	this.kill = spriteData.died;
-	this.gone = spriteData.gone;
-	this.damage = spriteData.damage;
-	this.range = spriteData.range;
-	this.sight = spriteData.sight;
+	
+	
+	this.handleKeyPress = function (keyPressed) {
+		if(keyPressed.char === 's') {
+			var event = {
+				type:"MoveUnit",
+				unit:unitId,
+				end:shape,
+				start:shape
+			};
+			TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(event));
+		}
+		spriteData.handleKeyPress(keyPressed);
+	};
 	
 	this.attacked = function (damage) {
 		health -= damage;
@@ -454,6 +531,10 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 			me.kill();
 			me.selected = false;
 		}
+	}
+	
+	this.getHealth = function () {
+		return health;
 	}
 	
 	this.canAttack = function () {
@@ -476,7 +557,6 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 			color : miniMapColor,
 			x: shape.x,
 			y: shape.y
-		
 		};
 	};
 		
@@ -505,6 +585,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 			healthX: shape.x - viewPort.x - spriteData.healthX,
 			healthY: shape.y - viewPort.y - spriteData.healthY,
 			range: spriteData.range,
+			sight: spriteData.sight,
 			dead: spriteData.isDead()
 		}
 	};
@@ -525,57 +606,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	this.setDestination = setDestination;
 }
 
-//One per session
-TacoGame.WorldSimulator = new function () {
-
-	var commands = [];
-	var step = 0;
-	
-	function executeCommand(command) {
-		commands[command.order] = new TacoGame.UserInput["UserCommand" + command.event.type](command.event);
-		commands[command.order].fix(command);
-		commands[command.order].commit();
-	}
-	
-	function gameObject() {
-
-	}
-	
-	function checkAttack() {
-		TacoGame.Utils.fireEvent("checkAttack", {step:step});
-	}
-	
-	function stepWorld() {
-		step++;
-		TacoGame.Utils.fireEvent("stepWorld", {step:step});
-	}
-	
-	function step100() {
-		TacoGame.Utils.fireEvent("step100", {step:step});
-	}
-	
-	setInterval(step100, 100);
-	
-	//This is the api for the simulator, may get rather large
-	return {
-		queueCommand : function (newCommand) {
-			if (newCommand.needsSync()) {
-				sendRequest(request({lib:"commander",func:"queueCommand"}, newCommand));
-			} else {
-				newCommand.commit();
-			}
-		},
-		
-		init : function () {
-			setInterval(stepWorld, 100);
-			setInterval(checkAttack, 15);
-			TacoGame.Utils.addServerListener('commandQueued', executeCommand);
-		}
-	}
-}
-window.addEventListener("load", TacoGame.WorldSimulator.init);
-
-TacoGame.Sprite = function (internal) {
+TacoGame.Sprite = function (internal, parent) {
 	var me = this;
 	this.img; //Set by loader
 	this.rImg; //Set by loader
@@ -623,9 +654,13 @@ TacoGame.Sprite = function (internal) {
 	this.getAction = function () {
 		return internal.action;
 	};
+	
+	this.handleKeyPress = function (keyPressed) {
+		
+	};
 };
 
-var MarineSprite = function () {
+var MarineSprite = function (parent) {
 	var me = {
 		action : 0,
 		step : 0,
@@ -634,7 +669,7 @@ var MarineSprite = function () {
 		gone: false
 	};
 	
-	TacoGame.Sprite.call(this, me);
+	TacoGame.Sprite.call(this, me, parent);
 	var sprite = this;
 
 	this.width = 64;
@@ -651,7 +686,7 @@ var MarineSprite = function () {
 	
 	this.damage = 5;
 	this.range = 100;
-	this.sight = 7;
+	this.sight = 140;
 	this.coolDown = 1;
 	
 	var startX = 0;
@@ -697,6 +732,40 @@ var MarineSprite = function () {
 		sprite.offsetX = startX + (spaceWidth * column);
 	};
 
+	this.handleStim = function () {
+		var multiplier = 1.1;
+		var attackMultiplier = 1.3;
+		parent.attacked(5);
+		sprite.unitSpeed *= multiplier;
+		sprite.damage *= attackMultiplier;
+		sprite.coolDown /= attackMultiplier;
+		setTimeout(function () {
+			sprite.unitSpeed /= multiplier;
+			sprite.damage /= attackMultiplier;
+			sprite.coolDown *= attackMultiplier;
+		}, 5 * 1000);
+	};
+	
+	this.handleKeyPress = function (keyPressed) {
+		var multiplier = 1.1;
+		if(keyPressed.char === 't') {
+			if(parent.getHealth() > 10) {
+				var event = {
+					type: "EntityAction",
+					action: "Stim",
+					unit: parent.id
+				};
+				TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(event));
+			}
+		}
+	};
+	
+	parent.kill = sprite.died;
+	parent.gone = sprite.gone;
+	parent.damage = sprite.damage;
+	parent.range = sprite.range;
+	parent.sight = sprite.sight;
+	parent.handleStim = sprite.handleStim;
 }
 MarineSprite.prototype.imgURLGreen = "sprites/marinezGreen.png";
 MarineSprite.prototype.imgURLRed = "sprites/marinezRed.png";
@@ -831,8 +900,8 @@ var workerPool = {
 }
 
 var pathFindingQueue = {};
-
-for(var i = 0; i < 12; i++) {
+var poolSize = 12;
+for(var i = 0; i < poolSize; i++) {
 	workerPool["a" + i] = new Worker("script/AStar.js");
 	workerPool["a" + i].onmessage = workerPool.onmessage;
 }
@@ -842,7 +911,7 @@ TacoGame.startAStar = function (grid, start, end, diagonal, radius, heuristic, i
 	TacoGame.Map.fillClosedPaths(grid, radius, id);
 	var message = JSON.stringify({grid:grid,start:start,end:end,diagonal:diagonal,radius:radius,heuristic:heuristic,id:id});
 	workerPool["a" + workerPool.next].postMessage(message);
-	workerPool.next = (workerPool.next + 1) % 4;
+	workerPool.next = (workerPool.next + 1) % poolSize;
 	pathFindingQueue[id] = callback;
 	pathFindingQueue[id + "time"] = (new Date()).getTime();
 }

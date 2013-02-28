@@ -1,5 +1,6 @@
 
-TacoGame.UserInput.UserCommand = function (event, commit, revert) {
+TacoGame.Commands = {};
+TacoGame.Commands.UserCommand = function (event, commit, revert) {
 	var me = this;
 	this.creationTime = (new Date()).getTime();
 	this.applyTime = null;
@@ -23,25 +24,24 @@ TacoGame.UserInput.UserCommand = function (event, commit, revert) {
 		commit();
 	}
 	
-	this.revert = function() {
-		this.state = "pending";
-		revert();
-	}
-	
 	//Check if this command needs to be synced with others
 	this.needsSync = function() {
 		return false;
 	}
 }
 
+TacoGame.createCommand = function(event) {
+	return new TacoGame.Commands["UserCommand" + event.type](event)
+}
+
 //Translate this into select or move
-TacoGame.UserInput.UserCommandClick = function (event) {
-	TacoGame.UserInput.UserCommand.call(this, event, commit);
+TacoGame.Commands.UserCommandClick = function (event) {
+	TacoGame.Commands.UserCommand.call(this, event, commit);
 
 	if (event.right) {
 		if (TacoGame.Map.isUnitSelected()) {
 			event.type = "Move";
-			return new TacoGame.UserInput.UserCommandMove(event);
+			return TacoGame.createCommand(event);
 		} else {
 			TacoGame.Map.deselectEntities();
 		}
@@ -52,13 +52,16 @@ TacoGame.UserInput.UserCommandClick = function (event) {
 	}
 }
 
-TacoGame.UserInput.UserCommandkeypress = function (event) {
-	TacoGame.UserInput.UserCommand.call(this, event);
+TacoGame.Commands.UserCommandKeyPress = function (event) {
+	TacoGame.Commands.UserCommand.call(this, event, commit);
 	
+	function commit() {
+		TacoGame.Map.keyPressed(event);
+	}
 }
 
-TacoGame.UserInput.UserCommandMove = function (event) {
-	TacoGame.UserInput.UserCommand.call(this, event, commit);
+TacoGame.Commands.UserCommandMove = function (event) {
+	TacoGame.Commands.UserCommand.call(this, event, commit);
 
 	//When the user does the action
 	function commit() {
@@ -66,30 +69,40 @@ TacoGame.UserInput.UserCommandMove = function (event) {
 	}
 }
 
-TacoGame.UserInput.UserCommandSelect = function (event) {
-	TacoGame.UserInput.UserCommand.call(this, event, commit);
+TacoGame.Commands.UserCommandSelect = function (event) {
+	TacoGame.Commands.UserCommand.call(this, event, commit);
 	//Check if this command needs to be synced with others
 	function commit() {
 		TacoGame.Map.selectEntities(new TacoGame.Rectangle(event.x, event.y, event.width, event.height), event.shift, false);
 	}
 }
 
-TacoGame.UserInput.UserCommandScroll = function (event) {
-	TacoGame.UserInput.UserCommand.call(this, event, commit, revert);
+TacoGame.Commands.UserCommandScroll = function (event) {
+	TacoGame.Commands.UserCommand.call(this, event, commit);
 	
 	//When the user does the action
 	function commit() {
 		TacoGame.Map.scrollViewPort({up:event.up,down:event.down,right:event.right,left:event.left});
 	}
+}
+
+TacoGame.Commands.UserCommandMoveUnit = function (event) {
+	TacoGame.Commands.UserCommand.call(this, event, commit);
+
 	
-	//To undo an action
-	function revert() {
-		TacoGame.Map.scrollViewPort({up:event.down,down:event.up,right:event.left,left:event.right});
+	//When the user does the action
+	function commit() {
+		TacoGame.Map.setUnitDestination(event.unit, event.end);
+	}
+		
+	//Check if this command needs to be synced with others
+	this.needsSync = function() {
+		return true;
 	}
 }
 
-TacoGame.UserInput.UserCommandMoveUnit = function (event) {
-	TacoGame.UserInput.UserCommand.call(this, event, commit, revert);
+TacoGame.Commands.UserCommandMoveUnit = function (event) {
+	TacoGame.Commands.UserCommand.call(this, event, commit);
 
 	
 	//When the user does the action
@@ -97,11 +110,20 @@ TacoGame.UserInput.UserCommandMoveUnit = function (event) {
 		TacoGame.Map.setUnitDestination(event.unit, event.end);
 	}
 	
-	//To undo an action
-	function revert() {
-		TacoGame.Map.setUnitDestination(event.unit, event.start);
+	//Check if this command needs to be synced with others
+	this.needsSync = function() {
+		return true;
 	}
+}
+
+TacoGame.Commands.UserCommandEntityAction = function (event) {
+	TacoGame.Commands.UserCommand.call(this, event, commit);
+
 	
+	//When the user does the action
+	function commit() {
+		TacoGame.Map.applyAction(event.unit, event.action);
+	}
 	
 	//Check if this command needs to be synced with others
 	this.needsSync = function() {

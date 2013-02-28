@@ -214,9 +214,10 @@ TacoGame.Comm.RequestProccessor = new function () {
 	var connection = new TacoGame.Comm.ServerConnection(response);
 	var waiting = {};
 	var lastID = 0;
-	var minResponseTime = 0;
+	var minResponseTime = Number.MAX_VALUE;
 	var maxResponseTime = 0;
 	var averageResponseTime = 0;
+	var responses = 0;
 
 	function nextID() {
 		return ++lastID;
@@ -224,6 +225,14 @@ TacoGame.Comm.RequestProccessor = new function () {
 
 	function response(message) {
 		message = JSON.parse(message.trim());
+		if(message.ts) {
+			var responseTime = new Date().getTime() - message.ts;
+			responses++;
+			var percent = 1 / responses;
+			averageResponseTime = (responseTime * percent) + (averageResponseTime * (1 - percent));
+			minResponseTime = Math.min(minResponseTime, responseTime);
+			maxResponseTime = Math.max(maxResponseTime, responseTime);
+		}
 		// an id means client initiated
 		if(message.id && waiting[message.id]) {
 			waiting[message.id].callback(waiting[message.id]);
@@ -237,7 +246,7 @@ TacoGame.Comm.RequestProccessor = new function () {
 
 	function sendRequest(request) {
 		var id = nextID();
-		var packet = {'id':id,'r':request.request,'p':request.params};
+		var packet = {'id':id,'r':request.request,'p':request.params,'ts':new Date().getTime()};
 		if(request.callback) {
 			waiting[id] = request;
 		}
@@ -245,7 +254,14 @@ TacoGame.Comm.RequestProccessor = new function () {
 	}
 	
 	return {
-		sendRequest: sendRequest
+		sendRequest: sendRequest,
+		getStats: function () {
+			return {
+				minResponseTime: minResponseTime,
+				maxResponseTime: maxResponseTime,
+				averageResponseTime: averageResponseTime
+			}
+		}
 	};
 };
 
