@@ -227,6 +227,7 @@ TacoGame.CanvasApi = new function () {
 				ctx.stroke();
 			}
 			ctx.restore();
+			/*
 			ctx.save();
 			if(entities[i].radius && entities[i].selected) {
 				ctx.beginPath();
@@ -236,7 +237,7 @@ TacoGame.CanvasApi = new function () {
 				ctx.arc(entities[i].tX / 1.3 , entities[i].tY / .7, entities[i].sight, 0, 2*Math.PI);
 				ctx.stroke();
 			}
-			ctx.restore();
+			ctx.restore();*/
 		}
 	}
 	

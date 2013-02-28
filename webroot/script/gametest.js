@@ -492,7 +492,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 				} else {
 					spriteData.setAction(0);
 					missedSteps++;
-					if(missedSteps > 15) {
+					if(missedSteps > 3) {
 						missedSteps = 0;
 						setDestination(desiredLoction);
 						return;
