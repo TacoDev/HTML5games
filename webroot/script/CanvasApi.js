@@ -52,15 +52,16 @@ TacoGame.CanvasApi = new function () {
 	
 	var userActions = {
 		drawSelect : function (gameEvent) {
+			var viewPort = TacoGame.Map.getViewPort();
 			ctx.save();
 			ctx.fillStyle = gameEvent.color;
 			ctx.strokeStyle = gameEvent.color;
 			
 			ctx.beginPath();
-			ctx.rect(gameEvent.x, gameEvent.y, gameEvent.width, gameEvent.height);
+			ctx.rect(gameEvent.x - viewPort.x, gameEvent.y - viewPort.y, gameEvent.width, gameEvent.height);
 			ctx.stroke();
 			ctx.globalAlpha = gameEvent.timeLeft / 1000;
-			ctx.fillRect(gameEvent.x, gameEvent.y, gameEvent.width, gameEvent.height);
+			ctx.fillRect(gameEvent.x - viewPort.x, gameEvent.y - viewPort.y, gameEvent.width, gameEvent.height);
 			ctx.restore();
 		},
 		drawClick : function (gameEvent) {
