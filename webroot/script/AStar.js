@@ -1,5 +1,5 @@
 
-var width = 400;
+var width = 250;
 var pixelsPerTile = 10;
 
 onmessage = function(e){
@@ -75,7 +75,10 @@ var astar = {
                 var curr = currentNode;
                 var ret = [];
                 while(curr.parent) {
-                    ret.push(curr);
+					ret.push({
+						x:curr.x,
+						y:curr.y
+					});
                     curr = curr.parent;
                 }
                 return ret.reverse();
@@ -126,7 +129,10 @@ var astar = {
 			var curr = closestNode;
 			var ret = [];
 			while(curr.parent) {
-				ret.push(curr);
+				ret.push({
+					x:curr.x,
+					y:curr.y
+				});
 				curr = curr.parent;
 			}
 			return ret.reverse();

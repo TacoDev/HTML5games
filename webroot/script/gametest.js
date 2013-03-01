@@ -145,7 +145,7 @@ TacoGame.Map = new function () {
 				return;
 			}
 		}
-		entities.push(new TacoGame.Entity(new TacoGame.Circle(params.x, params.y, params.r), params.type, params.id, params.playerId));
+		entities.push(new TacoGame.Entity(new TacoGame.Circle(params.x, params.y, params.r), params.type, params.id, params.playerId, params.health, params.desiredLocation));
 	}
 	
 	function checkAttack() {
@@ -424,7 +424,7 @@ TacoGame.WorldSimulator = new function () {
 window.addEventListener("load", TacoGame.WorldSimulator.init);
 
 
-TacoGame.Entity = function (_shape, type, unitId, playerId) {
+TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesiredLocation) {
 	var me = this;
 	var spriteData = new window[type](me);
 	//Valid shapes are CIRCLE and POYLGON, both are 2d
@@ -432,7 +432,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 		type:"undefined"
 	}
 	
-	var desiredLoction = null;
+	var desiredLocation = initDesiredLocation || null;
 	var miniMapColor = "#E30000";
 	spriteData.img = spriteData.rImg || spriteData.img;
 	if(playerId === TacoGame.Player.id) {
@@ -441,7 +441,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	}
 	var id = unitId;
 	var missedSteps = 0;
-	var health = spriteData.maxHealth;
+	var health = initHealth || spriteData.maxHealth;
 	
 	setTimeout(step, 100 / spriteData.unitSpeed);
 	
@@ -461,7 +461,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 				id,
 				function (response) {
 					tmp.steps = response;
-					desiredLoction = tmp;
+					desiredLocation = tmp;
 					spriteData.setAction(1);
 				});
 		}, 1);
@@ -470,15 +470,15 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 	function step() {
 		setTimeout(step, 100 / spriteData.unitSpeed);
 		spriteData.step();
-		if(desiredLoction && !spriteData.isDead()) {
-			if(desiredLoction.x === shape.x &&
-				desiredLoction.y === shape.y ||
-				desiredLoction.steps.length === 0) {
-				desiredLoction = null;
+		if(desiredLocation && !spriteData.isDead()) {
+			if(desiredLocation.x === shape.x &&
+				desiredLocation.y === shape.y ||
+				desiredLocation.steps.length === 0) {
+				desiredLocation = null;
 				spriteData.setAction(0);
 				return;
 			} else {
-				var nextStep = desiredLoction.steps.shift();
+				var nextStep = desiredLocation.steps.shift();
 				nextStep.x *= pixelsPerTile;
 				nextStep.y *= pixelsPerTile;
 				spriteData.setDegrees(Math.angleBetweenTwoPoints(nextStep, shape));
@@ -494,12 +494,12 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 					missedSteps++;
 					if(missedSteps > 3) {
 						missedSteps = 0;
-						setDestination(desiredLoction);
+						setDestination(desiredLocation);
 						return;
 					}
 					nextStep.x /= pixelsPerTile;
 					nextStep.y /= pixelsPerTile;
-					desiredLoction.steps.unshift(nextStep);
+					desiredLocation.steps.unshift(nextStep);
 				}
 			}
 		}
@@ -599,7 +599,9 @@ TacoGame.Entity = function (_shape, type, unitId, playerId) {
 			r: shape.radius,
 			id: id,
 			playerId: playerId,
-			type: type
+			type: type,
+			health: health,
+			desiredLocation:desiredLocation
 		};
 	}
 		
@@ -894,6 +896,7 @@ var workerPool = {
 		var messageData = JSON.parse(message.data);
 		//console.log((new Date()).getTime() - pathFindingQueue[messageData.id + "time"]);
 		pathFindingQueue[messageData.id](messageData.path);
+		console.log(messageData.path.length);
 		delete pathFindingQueue[messageData.id];
 		delete pathFindingQueue[messageData.id + "time"];
 	}
