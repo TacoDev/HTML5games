@@ -14,48 +14,54 @@ function done(returnVal, id){
 	//postMessage({data:JSON.stringify({path:returnVal,id:id})}); //Debug
 	//postMessage({data:{path:returnVal,id:id}}); //Without workers
 }
+function createNode(x, y, closed) {
+	return {
+		f:0,
+		g:0,
+		h:0,
+		cost:1,
+		visited:false,
+		closed:closed,
+		parent:null,
+		x:x,
+		y:y
+	}
+}
 
+var grid = [];
+
+function initGrid() {
+	for(var x = 0, xl = width; x < xl; x++) {
+		for(var y = 0, yl = width; y < yl; y++) {
+			if(!grid[x]) {
+				grid[x] = [];
+			}
+			grid[x][y] = createNode(x, y, false);
+		}
+	}
+}
+initGrid();
 var astar = {
     init: function(grid, start) {
-		var node;
         for(var x = 0, xl = width; x < xl; x++) {
             for(var y = 0, yl = width; y < yl; y++) {
 				if(!grid[x]) {
 					grid[x] = [];
 				}
-                node = grid[x][y] || {};
-                node.f = 0;
-                node.g = 0;
-                node.h = 0;
-                node.cost = 1;
-                node.visited = false;
-                node.closed = node.closed || false;
-                node.parent = null;
-                node.x = x;
-                node.y = y;
-				grid[x][y] = node;
+				grid[x][y] = createNode(x, y, (grid[x][y] || {}).closed);
             }
         }
-		node = {};
-		node.f = 0;
-		node.g = 0;
-		node.h = 0;
-		node.cost = 1;
-		node.visited = true;
-		node.closed = true;
-		node.parent = null;
-		node.x = start.x;
-		node.y = start.y;
-		grid[start.x][start.y] = node;
-		return node;
+		grid[start.x][start.y] = createNode(start.x, start.y, true);
+		grid[start.x][start.y].visited = true;
+		return grid[start.x][start.y];
     },
     heap: function() {
         return new BinaryHeap(function(node) { 
             return node.f; 
         });
     },
-    search: function(grid, start, end, diagonal, radius, heuristic, id) {
-        var first = astar.init(grid, start);
+    search: function(inGrid, start, end, diagonal, radius, heuristic, id) {
+        var first = astar.init(inGrid, start);
         heuristic = heuristic || astar.manhattan;
         diagonal = !!diagonal;
 		

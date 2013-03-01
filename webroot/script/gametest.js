@@ -894,9 +894,8 @@ var workerPool = {
 	next : 1,
 	onmessage : function (message) {
 		var messageData = JSON.parse(message.data);
-		//console.log((new Date()).getTime() - pathFindingQueue[messageData.id + "time"]);
+		console.log((new Date()).getTime() - pathFindingQueue[messageData.id + "time"]);
 		pathFindingQueue[messageData.id](messageData.path);
-		console.log(messageData.path.length);
 		delete pathFindingQueue[messageData.id];
 		delete pathFindingQueue[messageData.id + "time"];
 	}
