@@ -19,8 +19,9 @@ TacoGame.Math = new function () {
 	Math.circlesColliding = function (circle1, circle2) {
 		//compare the distance to combined radii
 		var distanceSquared = Math.distanceBetweenSquared(circle1, circle2);
-		var radii = circle1.radius + circle2.radius;
-		if ( distanceSquared < radii * radii ) {
+		var radiiSquared = Math.pow(Math.max(circle1.radius, circle2.radius), 2);
+		if ( distanceSquared < radiiSquared ) {
+			console.log(distanceSquared + ":" + radiiSquared);
 			return true;
 		} else {
 			return false;

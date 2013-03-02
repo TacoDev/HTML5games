@@ -5,12 +5,12 @@ var pixelsPerTile = 10;
 onmessage = function(e){
 	var p = JSON.parse(e.data);
 	//var p = e.data; //Without JSON
-	done(astar.search(p.grid, p.start, p.end, p.diagonal, p.radius, p.heuristic, p.id), p.id);
+	done(astar.search(p.grid, p.start, p.end, p.moveSpeed), p.messageId);
 };
 
-function done(returnVal, id){
+function done(returnVal, messageId){
 	// Send back the results to the parent page
-	postMessage(JSON.stringify({path:returnVal,id:id}));
+	postMessage(JSON.stringify({path:returnVal,messageId:messageId}));
 	//postMessage({data:JSON.stringify({path:returnVal,id:id})}); //Debug
 	//postMessage({data:{path:returnVal,id:id}}); //Without workers
 }
@@ -28,42 +28,32 @@ function createNode(x, y, closed) {
 	}
 }
 
-var grid = [];
-
-function initGrid() {
-	for(var x = 0, xl = width; x < xl; x++) {
-		for(var y = 0, yl = width; y < yl; y++) {
-			if(!grid[x]) {
-				grid[x] = [];
-			}
-			grid[x][y] = createNode(x, y, false);
-		}
+function returnPath(curr) {
+	var ret = [];
+	while(curr.parent) {
+		ret.push({
+			x:curr.x * pixelsPerTile,
+			y:curr.y * pixelsPerTile
+		});
+		curr = curr.parent;
 	}
+	return ret.reverse();
 }
-initGrid();
+
 var astar = {
-    init: function(grid, start) {
-        for(var x = 0, xl = width; x < xl; x++) {
-            for(var y = 0, yl = width; y < yl; y++) {
-				if(!grid[x]) {
-					grid[x] = [];
-				}
-				grid[x][y] = createNode(x, y, (grid[x][y] || {}).closed);
-            }
-        }
-		grid[start.x][start.y] = createNode(start.x, start.y, true);
-		grid[start.x][start.y].visited = true;
-		return grid[start.x][start.y];
+    init: function(start) {
+		var node = createNode(start.x, start.y, true);
+		node.visited = true;
+		return node;
     },
     heap: function() {
         return new BinaryHeap(function(node) { 
             return node.f; 
         });
     },
-    search: function(inGrid, start, end, diagonal, radius, heuristic, id) {
-        var first = astar.init(inGrid, start);
-        heuristic = heuristic || astar.manhattan;
-        diagonal = !!diagonal;
+    search: function(grid, start, end, moveSpeed) {
+        var first = astar.init(start);
+        var heuristic = astar.manhattan;
 		
 		var closestNode = first;
 		closestNode.h = heuristic({x:closestNode.x, y:closestNode.y}, {x:end.x, y:end.y});
@@ -78,23 +68,14 @@ var astar = {
  
             // End case -- result has been found, return the traced path.
             if(currentNode.x === end.x && currentNode.y === end.y) {
-                var curr = currentNode;
-                var ret = [];
-                while(curr.parent) {
-					ret.push({
-						x:curr.x,
-						y:curr.y
-					});
-                    curr = curr.parent;
-                }
-                return ret.reverse();
+				return returnPath(currentNode);
             }
  
             // Normal case -- move currentNode from open to closed, process each of its neighbors.
             currentNode.closed = true;
  
-            // Find all neighbors for the current node. Optionally find diagonal neighbors as well (false by default).
-            var neighbors = astar.neighbors(grid, currentNode, diagonal);
+            // Find all neighbors for the current node.
+            var neighbors = astar.neighbors(grid, currentNode, moveSpeed);
  
             for(var i=0, il = neighbors.length; i < il; i++) {
                 var neighbor = neighbors[i];
@@ -131,75 +112,83 @@ var astar = {
             }
         }
 		
-		if(closestNode && closestNode.g > 1) {
-			var curr = closestNode;
-			var ret = [];
-			while(curr.parent) {
-				ret.push({
-					x:curr.x,
-					y:curr.y
-				});
-				curr = curr.parent;
-			}
-			return ret.reverse();
+		if(closestNode) {
+			return returnPath(closestNode);
 		}
-		
 		return [];
     },
     manhattan: function(pos0, pos1) {
         // See list of heuristics: http://theory.stanford.edu/~amitp/GameProgramming/Heuristics.html
- 
         var d1 = Math.abs (pos1.x - pos0.x);
         var d2 = Math.abs (pos1.y - pos0.y);
         return d1 + d2;
     },
-    neighbors: function(grid, node, diagonals) {
+    neighbors: function(grid, node, moveSpeed) {
         var ret = [];
         var x = node.x;
+		var x1 = x + moveSpeed;
+		var xs1 = x - moveSpeed;
         var y = node.y;
- 
+		var y1 = y + moveSpeed;
+		var ys1 = y - moveSpeed;
+		if(!grid[x]) {
+			grid[x] = [];
+		}
+		//TODO: Change to use collision instead of fixed graph
+		function setGrid(x, y) {
+			if(grid[x][y] && grid[x][y].cost) {
+				grid[x][y] = grid[x][y];
+			} else if (grid[x][y]) {
+				grid[x][y] = createNode(x, y, grid[x][y].closed);
+			} else {
+				grid[x][y] = createNode(x, y, false);
+			}
+			return grid[x][y];
+		}
+		
         // West
-        if(grid[x-1] && grid[x-1][y]) {
-            ret.push(grid[x-1][y]);
+        if(x > 0) {
+			if(!grid[xs1]) {
+				grid[xs1] = [];
+			}
+            ret.push(setGrid(xs1, y));
+			
+			// Southwest
+			if(y > 0) {
+				ret.push(setGrid(xs1, ys1));
+			}
+			// Northwest
+			if(y < width) {
+				ret.push(setGrid(xs1, y1));
+			}
         }
  
         // East
-        if(grid[x+1] && grid[x+1][y]) {
-            ret.push(grid[x+1][y]);
+        if(x < width) {
+			if(!grid[x1]) {
+				grid[x1] = [];
+			}
+			ret.push(setGrid(x1, y));
+			
+			// Southeast
+			if(y > 0) {
+				ret.push(setGrid(x1, ys1));
+			}
+
+			// Northeast
+			if(y < width) {
+				ret.push(setGrid(x1, y1));
+			}
         }
  
         // South
-        if(grid[x] && grid[x][y-1]) {
-            ret.push(grid[x][y-1]);
+        if(y > 0) {
+			ret.push(setGrid(x, ys1));
         }
  
         // North
-        if(grid[x] && grid[x][y+1]) {
-            ret.push(grid[x][y+1]);
-        }
- 
-        if (diagonals) {
- 
-            // Southwest
-            if(grid[x-1] && grid[x-1][y-1]) {
-                ret.push(grid[x-1][y-1]);
-            }
- 
-            // Southeast
-            if(grid[x+1] && grid[x+1][y-1]) {
-                ret.push(grid[x+1][y-1]);
-            }
- 
-            // Northwest
-            if(grid[x-1] && grid[x-1][y+1]) {
-                ret.push(grid[x-1][y+1]);
-            }
- 
-            // Northeast
-            if(grid[x+1] && grid[x+1][y+1]) {
-                ret.push(grid[x+1][y+1]);
-            }
- 
+        if(y < width) {
+			ret.push(setGrid(x, y1));
         }
  
         return ret;

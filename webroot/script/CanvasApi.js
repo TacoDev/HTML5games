@@ -61,7 +61,7 @@ TacoGame.CanvasApi = new function () {
 			ctx.rect(gameEvent.x - viewPort.x, gameEvent.y - viewPort.y, gameEvent.width, gameEvent.height);
 			ctx.stroke();
 			ctx.globalAlpha = gameEvent.timeLeft / 1000;
-			ctx.fillRect(gameEvent.x - viewPort.x, gameEvent.y - viewPort.y, gameEvent.width, gameEvent.height);
+			ctx.fillRect(gameEvent.x + viewPort.x, gameEvent.y - viewPort.y, gameEvent.width, gameEvent.height);
 			ctx.restore();
 		},
 		drawClick : function (gameEvent) {
@@ -250,7 +250,7 @@ TacoGame.CanvasApi = new function () {
 	function drawOverlay() {
 		ctx.save();
 		var viewport = TacoGame.Map.getViewPort();
-		var sideLength = 300;
+		var sideLength = viewport.height * .30;
 		var padding = 10;
 		var top = canvas.height - sideLength - padding;
 		ctx.clearRect(padding, top, sideLength, sideLength);
