@@ -86,28 +86,13 @@ TacoGame.Commands.UserCommandScroll = function (event) {
 	}
 }
 
-TacoGame.Commands.UserCommandMoveUnit = function (event) {
-	TacoGame.Commands.UserCommand.call(this, event, commit);
-
-	
-	//When the user does the action
-	function commit() {
-		TacoGame.Map.setUnitDestination(event.unit, event.end);
-	}
-		
-	//Check if this command needs to be synced with others
-	this.needsSync = function() {
-		return true;
-	}
-}
 
 TacoGame.Commands.UserCommandMoveUnit = function (event) {
 	TacoGame.Commands.UserCommand.call(this, event, commit);
-
 	
 	//When the user does the action
 	function commit() {
-		TacoGame.Map.setUnitDestination(event.unit, event.end);
+		TacoGame.Map.setUnitDestination(event.unit, event.end, event.startTime);
 	}
 	
 	//Check if this command needs to be synced with others

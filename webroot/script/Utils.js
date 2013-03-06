@@ -24,6 +24,8 @@ TacoGame.Utils = new function (){
 	var eventHandler = new function() {
 		var me = this;
 		var listeners = {};
+		//used to make sure we only listen to the server event once
+		var serverListeners = {};
 
 		this.addListener = function(name, fncPtr) {
 			if(!listeners[name]) {
@@ -34,7 +36,11 @@ TacoGame.Utils = new function (){
 		
 		this.addServerListener = function(name, fncPtr) {
 			me.addListener(name, fncPtr);
-			sendRequest(request({lib:"events",func:"addListener"},{name:name}));
+			if(!serverListeners[name]) {
+				serverListeners[name] = 0;
+				sendRequest(request({lib:"events",func:"addListener"},{name:name}));
+			}
+			serverListeners[name]++;
 		}
 
 		this.removeListener = function(name, fncPtr) {
@@ -51,14 +57,24 @@ TacoGame.Utils = new function (){
 		
 		this.removeServerListener = function(name, fncPtr) {
 			me.removeListener(name, fncPtr);
-			sendRequest(request({lib:"events",func:"removeListener"},{name:name}));
+			serverListeners[name]--;
+			if(!serverListeners[name]) {
+				sendRequest(request({lib:"events",func:"removeListener"},{name:name}));
+				delete serverListeners[name];
+			}
 		}
 
 		this.fireEvent = function(name, data) {
+			function timeOutCall(func, args) {
+				setTimeout(function () {
+					func(args);
+				}, 0);
+			}
+		
 			if(listeners[name]) {
 				var length = listeners[name].length;
 				for(var i = 0; i < length; i++) {
-					listeners[name][i](data);
+					timeOutCall(listeners[name][i], data);
 				}
 			}
 		}

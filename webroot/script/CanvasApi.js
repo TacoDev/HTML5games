@@ -50,6 +50,8 @@ TacoGame.CanvasApi = new function () {
 	//Pointer to the main paint loop interval
 	var colorInterval;
 	
+	var pathPoints = {};
+	
 	var userActions = {
 		drawSelect : function (gameEvent) {
 			var viewPort = TacoGame.Map.getViewPort();
@@ -61,7 +63,7 @@ TacoGame.CanvasApi = new function () {
 			ctx.rect(gameEvent.x - viewPort.x, gameEvent.y - viewPort.y, gameEvent.width, gameEvent.height);
 			ctx.stroke();
 			ctx.globalAlpha = gameEvent.timeLeft / 1000;
-			ctx.fillRect(gameEvent.x + viewPort.x, gameEvent.y - viewPort.y, gameEvent.width, gameEvent.height);
+			ctx.fillRect(gameEvent.x - viewPort.x, gameEvent.y - viewPort.y, gameEvent.width, gameEvent.height);
 			ctx.restore();
 		},
 		drawClick : function (gameEvent) {
@@ -191,9 +193,10 @@ TacoGame.CanvasApi = new function () {
 				ctx.beginPath();
 				ctx.fillStyle = "#00E32A";
 				ctx.strokeStyle = "#00E32A";
-				ctx.setTransform(1.3,0,0,.7, -viewport.x, -viewport.y);
+				//ctx.translate(-viewport.x, -viewport.y);
+				//ctx.setTransform(1.3,0,0,.7, -viewport.x, -viewport.y);
 				ctx.beginPath();
-				ctx.arc(entities[i].tX / 1.3 , entities[i].tY / .7, entities[i].radius, 0, 2*Math.PI);
+				ctx.arc(entities[i].tX , entities[i].tY, entities[i].radius, 0, 2*Math.PI);
 				ctx.stroke();
 				ctx.globalAlpha = .2;
 				ctx.fill();
@@ -244,7 +247,27 @@ TacoGame.CanvasApi = new function () {
 	
 	//Do nothing for now
 	function drawEffects() {
-	
+		var viewport = TacoGame.Map.getViewPort();
+		var current, next;
+		for(var t in pathPoints) {
+			ctx.save();
+			ctx.fillStyle = "#0000FF";
+			ctx.strokeStyle = "#0000FF";
+			ctx.translate(-viewport.x, -viewport.y);
+			ctx.globalAlpha=0.7;
+			ctx.beginPath();
+			if(pathPoints[t][0]) {
+				ctx.moveTo(pathPoints[t][0].x, pathPoints[t][0].y);
+			}
+			for(var i=0;i<pathPoints[t].length;i++) {
+				current = pathPoints[t][i];
+				ctx.fillRect(current.x - 1, current.y - 1, 2, 2);
+				ctx.lineTo(current.x, current.y);
+				ctx.moveTo(current.x, current.y);
+			}
+			ctx.stroke();
+			ctx.restore();
+		}
 	}
 	
 	function drawOverlay() {
@@ -278,7 +301,7 @@ TacoGame.CanvasApi = new function () {
 			ctx.fillStyle = entities[i].color;
 			
 			ctx.beginPath();
-			ctx.arc(entities[i].x / viewport.getWidthConversion() * sideLength + padding, entities[i].y / viewport.getHeightConversion() * sideLength + top, 1, 0, 2*Math.PI);
+			ctx.arc(entities[i].x / viewport.maxTileX * sideLength + padding, entities[i].y / viewport.maxTileY * sideLength + top, 1, 0, 2*Math.PI);
 			ctx.closePath();
 			ctx.fill();
 			
@@ -316,7 +339,16 @@ TacoGame.CanvasApi = new function () {
 			handleResize();
 			colorInterval = setInterval(drawUI, 1/30 * 1000);
 		},
-		draw: drawUI
+		draw: drawUI,
+		addDrawPath : function (id, newPoint) {
+			if(!pathPoints[id]) {
+				pathPoints[id] = [];
+			}
+			pathPoints[id].push(newPoint);
+		},
+		clearDrawPath : function (id) {
+			pathPoints[id] = [];
+		}
 	}
 }
 

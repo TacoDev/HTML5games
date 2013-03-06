@@ -12,8 +12,7 @@ TacoGame.Player = new function () {
 	
 	this.id = Math.round(Math.random() * 9000 + 1000) + "-" + Math.round(Math.random() * 9000 + 1000) + "-" + Math.round(Math.random() * 9000 + 1000);
 }
-var width = 250;
-var pixelsPerTile = 10;
+var width = 2500;
 var gridCache = {};
 
 //May be multiple maps in the future
@@ -23,7 +22,7 @@ TacoGame.Map = new function () {
 	var maxTileX = width;
 	var minTileY = 0;
 	var maxTileY = width;
-	var scrollSpeed = 5;
+	var scrollSpeed = 50;
 	var entities = [];
 	var entitiesMap = {};
 	var playerEntities = [];
@@ -38,35 +37,29 @@ TacoGame.Map = new function () {
 		maxTileX : maxTileX,
 		maxTileY : maxTileY,
 		
-		getWidthConversion : function () {
-			return (maxTileX * pixelsPerTile);
-		},
-		getHeightConversion : function () {
-			return (maxTileY * pixelsPerTile);
-		},
 		getLeftPercent : function () {
 			if(viewPort.x === 0) {
 				return 0;
 			}
-			return viewPort.x / viewPort.getWidthConversion();
+			return viewPort.x / viewPort.maxTileX
 		},
 		getTopPercent : function () {
 			if(viewPort.y === 0) {
 				return 0;
 			}
-			return viewPort.y / viewPort.getHeightConversion();
+			return viewPort.y / viewPort.maxTileY;
 		},
 		getWidthPercent : function () {
 			if(viewPort.width === 0) {
 				return 0;
 			}
-			return viewPort.width / viewPort.getWidthConversion();
+			return viewPort.width / viewPort.maxTileX;
 		},
 		getHeightPercent : function () {
 			if(viewPort.height === 0) {
 				return 0;
 			}
-			return viewPort.height / viewPort.getHeightConversion();
+			return viewPort.height / viewPort.maxTileY;
 		}
 	};
 	
@@ -107,18 +100,16 @@ TacoGame.Map = new function () {
 				return;
 			}
 			function randomInt(max, min) {
-				var num = (Math.random() * (max - min)) + min;
-				num -= num % 10 + 5;
-				return num
+				return Math.round((Math.random() * (max - min)) + min);
 			}
-			var marineRadius = 20;
-			var centerX = randomInt(200, 2300);
-			var centerY = randomInt(200, 2300);
-			for(var i = 0; i < 10; i++) {
+			var marineRadius = 15;
+			var centerX = randomInt(200, 400);
+			var centerY = randomInt(200, 400);
+			for(var i = 0; i < 20; i++) {
 				do {
 					var x = randomInt(centerX - 100, centerX + 100);
-					var y = randomInt(centerX - 100, centerX + 100);
-				} while(TacoGame.Map.isOccupied(x, y, marineRadius, marineRadius));
+					var y = randomInt(centerY - 100, centerY + 100);
+				} while(TacoGame.Map.isOccupied(x, y, marineRadius));
 				var id = (new Date()).getTime() + "" + Math.round(Math.random() * 600);
 				addEntity({x:x,y:y,r:marineRadius,type:"MarineSprite",playerId:TacoGame.Player.id,id:id});
 			}
@@ -127,7 +118,7 @@ TacoGame.Map = new function () {
 	}
 	
 	function killUnit(unit) {
-		entitiesMap[newUnit.id].kill();
+		entitiesMap[unit].kill();
 	}
 	
 	function initMyUnits() {
@@ -190,47 +181,7 @@ TacoGame.Map = new function () {
 			}
 		}
 	}
-	
-	function setGridValue(x, y, closed) {
-		if(closed) {
-			gridCache[x][y] = {closed:true};
-			return;
-		}
-		delete gridCache[x][y];
-	}
-	
-	function fillGridPaths(shape, closed) {
-		var distance = Math.floor(shape.radius / pixelsPerTile);
-		var smallX = Math.floor(shape.x / pixelsPerTile);
-		var smallY = Math.floor(shape.y / pixelsPerTile);
-		if(!gridCache[smallX]) {
-			gridCache[smallX] = [];
-		}
-		if(!gridCache[smallX - 1]) {
-			gridCache[smallX - 1] = [];
-		}
-		if(!gridCache[smallX + 1]) {
-			gridCache[smallX + 1] = [];
-		}
-		
-		if(distance >= 1) {
-			setGridValue(smallX, smallY, closed);
-		}
-		if(distance >= 2) {
-			setGridValue(smallX - 1, smallY, closed);
-			setGridValue(smallX, smallY - 1, closed);
-			setGridValue(smallX - 1, smallY - 1, closed);
-		}
-		if(distance >= 3) {
-			setGridValue(smallX, smallY + 1, closed);
-			setGridValue(smallX + 1, smallY, closed);
-			setGridValue(smallX + 1, smallY - 1, closed);
-			setGridValue(smallX + 1, smallY + 1, closed);
-			setGridValue(smallX - 1, smallY + 1, closed);
-		}
-	
-	}
-		
+			
 	return {
 		init : function () {
 			canvas = document.getElementById('gameScreen');
@@ -254,16 +205,16 @@ TacoGame.Map = new function () {
 		
 		scrollViewPort : function (directions) {
 			if (directions.up) {
-				viewPort.y = Math.max(viewPort.y - scrollSpeed * pixelsPerTile, 0);
+				viewPort.y = Math.max(viewPort.y - scrollSpeed, 0);
 			}
 			if (directions.down) {
-				viewPort.y = Math.min(viewPort.y + scrollSpeed * pixelsPerTile, maxTileY * pixelsPerTile - viewPort.height);
+				viewPort.y = Math.min(viewPort.y + scrollSpeed, maxTileY - viewPort.height);
 			}
 			if (directions.right) {
-				viewPort.x = Math.min(viewPort.x + scrollSpeed * pixelsPerTile, maxTileX * pixelsPerTile - viewPort.width);
+				viewPort.x = Math.min(viewPort.x + scrollSpeed, maxTileX - viewPort.width);
 			}
 			if (directions.left) {
-				viewPort.x = Math.max(viewPort.x - scrollSpeed * pixelsPerTile, 0);
+				viewPort.x = Math.max(viewPort.x - scrollSpeed, 0);
 			}
 		},
 		
@@ -337,48 +288,14 @@ TacoGame.Map = new function () {
 			unitSelected = false;
 		},
 		
-		addClosedPaths : function (shape) {
-			fillGridPaths(shape, true);
-		},
-		
-		removeClosedPaths : function (shape) {
-			fillGridPaths(shape, false);
-		},
-		
 		isOccupied : function (x, y, r, id) {
-			var hit = false;
-			function checkSquare(x, y) {
-				hit = hit || gridCache[x][y];
+			var c1 = new TacoGame.Circle(x, y, r);
+			for (var i = 0; i < entities.length; i++) {
+				if(entities[i].id !== id && Math.circlesColliding(entities[i].getShape(), c1)) {
+					return true;
+				}
 			}
-			var distance = Math.floor(r / pixelsPerTile);
-			var smallX = Math.floor(x / pixelsPerTile);
-			var smallY = Math.floor(y / pixelsPerTile);
-			if(!gridCache[smallX]) {
-				gridCache[smallX] = [];
-			}
-			if(!gridCache[smallX - 1]) {
-				gridCache[smallX - 1] = [];
-			}
-			if(!gridCache[smallX + 1]) {
-				gridCache[smallX + 1] = [];
-			}
-			
-			if(distance >= 1) {
-				checkSquare(smallX, smallY);
-			}
-			if(distance >= 2) {
-				checkSquare(smallX - 1, smallY);
-				checkSquare(smallX, smallY - 1);
-				checkSquare(smallX - 1, smallY - 1);
-			}
-			if(distance >= 3) {
-				checkSquare(smallX, smallY + 1);
-				checkSquare(smallX + 1, smallY);
-				checkSquare(smallX + 1, smallY - 1);
-				checkSquare(smallX + 1, smallY + 1);
-				checkSquare(smallX - 1, smallY + 1);
-			}
-			return hit;
+			return false;
 		},
 		
 		setDestination : function (event) {
@@ -388,15 +305,20 @@ TacoGame.Map = new function () {
 						unit : playerEntities[i].id,
 						start : playerEntities[i].getShape(),
 						end : event,
-						type : "MoveUnit"
-					}
+						type : "MoveUnit",
+						startTime : TacoGame.WorldSimulator.getCurrentTime()
+					};
 					TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(newEvent));
 				}
 			}
 		},
 		
-		setUnitDestination : function (unit, end) {
-			entitiesMap[unit].setDestination(end);
+		setUnitDestination : function (unit, end, startTime) {
+			entitiesMap[unit].setDestination(end, startTime);
+		},
+		
+		setUnitPath : function (unit, path) {
+			entitiesMap[unit].setPath(path);
 		},
 		
 		isUnitSelected : function () {
@@ -421,25 +343,21 @@ window.addEventListener("unload", TacoGame.Map.destroy);
 TacoGame.WorldSimulator = new function () {
 
 	var commands = [];
-	var step = 0;
+	var time = 0;
 	
 	function executeCommand(command) {
 		commands[command.order] = TacoGame.createCommand(command.event);
 		commands[command.order].fix(command);
 		commands[command.order].commit();
 	}
-	
-	function gameObject() {
-
-	}
-	
+		
 	function checkAttack() {
-		TacoGame.Utils.fireEvent("checkAttack", {step:step});
+		TacoGame.Utils.fireEvent("checkAttack", time);
 	}
 	
 	function stepWorld() {
-		step++;
-		TacoGame.Utils.fireEvent("stepWorld", {step:step});
+		time++;
+		TacoGame.Utils.fireEvent("stepWorld", time);
 	}
 	
 	//This is the api for the simulator, may get rather large
@@ -452,559 +370,121 @@ TacoGame.WorldSimulator = new function () {
 			}
 		},
 		
+		getCurrentTime: function () {
+			return time;
+		},
+		
 		init : function () {
 			setInterval(stepWorld, 100);
-			//setInterval(checkAttack, 50);
+			setInterval(checkAttack, 50);
 			TacoGame.Utils.addServerListener('commandQueued', executeCommand);
 		}
 	}
 }
 window.addEventListener("load", TacoGame.WorldSimulator.init);
 
-
-TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesiredLocation) {
-	var me = this;
-	var spriteData = new window[type](me);
-	//Valid shapes are CIRCLE and POYLGON, both are 2d
-	var shape = _shape || {
-		type:"undefined"
-	}
-	
-	var desiredLocation = initDesiredLocation || null;
-	var miniMapColor = "#E30000";
-	spriteData.img = spriteData.rImg || spriteData.img;
-	if(playerId === TacoGame.Player.id) {
-		miniMapColor = "#00FF40";
-		spriteData.img = spriteData.gImg || spriteData.img;
-	}
-	var id = unitId;
-	var missedSteps = 0;
-	var health = initHealth || spriteData.maxHealth;
-	var tries = 0;
-	
-	setTimeout(step, 100 / spriteData.unitSpeed);
-	TacoGame.Map.addClosedPaths(shape);
-	
-	function setDestination (end) {
-		var grid = [];
-		var tmp = {};
-		if(shape.x === end.x &&
-			shape.y === end.y) {
-			return;
-		}
-		tmp.x = end.x;
-		tmp.y = end.y;
-		setTimeout(function () {
-			TacoGame.startAStar(
-				grid,
-				{x:Math.round(shape.x / pixelsPerTile), y:Math.round(shape.y / pixelsPerTile)},
-				{x:Math.round(end.x / pixelsPerTile), y:Math.round(end.y / pixelsPerTile)},
-				shape,
-				id,
-				spriteData.unitSpeed,
-				function (response) {
-					tmp.steps = response;
-					desiredLocation = tmp;
-					spriteData.setAction(1);
-				});
-		}, 1);
-	}
-	
-	function step() {
-		setTimeout(step, 100 / spriteData.unitSpeed);
-		spriteData.step();
-		if(desiredLocation && !spriteData.isDead()) {
-			if(desiredLocation.x === shape.x &&
-				desiredLocation.y === shape.y ||
-				desiredLocation.steps.length === 0) {
-				desiredLocation = null;
-				spriteData.setAction(0);
-				return;
-			} else {
-				var nextStep = desiredLocation.steps.shift();
-				spriteData.setDegrees(Math.angleBetweenTwoPoints(nextStep, shape));
-				TacoGame.Map.removeClosedPaths(shape);
-				if(!TacoGame.Map.isOccupied(nextStep.x, nextStep.y, shape.radius, id)) {
-					shape.x = nextStep.x;
-					shape.y = nextStep.y;
-					if(missedSteps) {
-						spriteData.setAction(1);
-					}
-					missedSteps = 0;
-					tries = 0;
-				} else {
-					console.log('Some one is here!');
-					spriteData.setAction(0);
-					missedSteps++;
-					if(missedSteps > 3 && tries < 3) {
-						missedSteps = 0;
-						setDestination(desiredLocation);
-						tries++;
-						return;
-					}
-					desiredLocation.steps.unshift(nextStep);
-				}
-				TacoGame.Map.addClosedPaths(shape);
-			}
-		}
-	}
-	
-	//public interface
-	this.selected = false;
-	this.id = id;
-	this.playerId = playerId;
-	
-	
-	this.handleKeyPress = function (keyPressed) {
-		if(keyPressed.char === 's') {
-			var event = {
-				type:"MoveUnit",
-				unit:unitId,
-				end:shape,
-				start:shape
-			};
-			if(desiredLocation) {
-				event.end = desiredLocation.steps.shift();
-			}
-			TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(event));
-		}
-		spriteData.handleKeyPress(keyPressed);
-	};
-	
-	this.attacked = function (damage) {
-		health -= damage;
-		if(health <= 0) {
-			health = 0;
-			me.kill();
-			me.selected = false;
-		}
-	}
-	
-	this.getHealth = function () {
-		return health;
-	}
-	
-	this.canAttack = function () {
-		return (spriteData.getAction() === 0);
-	};
-	
-	this.attack = function (degrees) {
-		spriteData.setAction(2);
-		setTimeout(function () {spriteData.setAction(0)}, spriteData.coolDown * 1000);
-		spriteData.setDegrees(degrees);
-	};
-	
-	this.getShape = function () {
-		return shape;
-	};
-		
-	this.getDrawData = function () {
-		return {
-			shape : "CIRCLE",
-			color : miniMapColor,
-			x: shape.x,
-			y: shape.y
-		};
-	};
-		
-	this.isLoaded = function () {
-		return !!(spriteData.img);
-	};
-		
-	this.getSpriteData = function (viewPort) {
-		spriteData.updateOffsets();
-		return {
-			img : spriteData.img,
-			offsetX : spriteData.offsetX,
-			offsetY: spriteData.offsetY,
-			width: spriteData.width,
-			height: spriteData.height,
-			x: shape.x - viewPort.x - spriteData.fixX,
-			y: shape.y - viewPort.y - spriteData.fixY,
-			tX: shape.x,
-			tY: shape.y,
-			radius: shape.radius,
-			scaleNegative: spriteData.scaleNegative,
-			selected : me.selected,
-			health: health,
-			maxHealth: spriteData.maxHealth,
-			healthWidth: spriteData.healthWidth,
-			healthX: shape.x - viewPort.x - spriteData.healthX,
-			healthY: shape.y - viewPort.y - spriteData.healthY,
-			range: spriteData.range,
-			sight: spriteData.sight,
-			dead: spriteData.isDead()
-		}
-	};
-		
-	
-	
-	this.toObject = function() {
-		return {
-			x: shape.x,
-			y: shape.y,
-			r: shape.radius,
-			id: id,
-			playerId: playerId,
-			type: type,
-			health: health,
-			desiredLocation:desiredLocation
-		};
-	}
-		
-	this.setDestination = setDestination;
-	this.recalculatePath = function () {
-		setDestination({x:desiredLocation.x,y:desiredLocation.y});
-	}
+function postMessage (message) {
+	workerPool.onMessage(message);
 }
 
-TacoGame.Sprite = function (internal, parent) {
+TacoGame.WorkerPool = function (script, handler) {
 	var me = this;
-	this.img; //Set by loader
-	this.rImg; //Set by loader
-	this.gImg; //Set by loader
-	this.offsetX = 0;
-	this.offsetY = 0;
-	this.width = 80;
-	this.height = 80;
-	this.fixX = 40;
-	this.fixY = 50;
-	this.scaleNegative = false;
-	this.maxHealth;
-	this.healthWidth;
-	this.healthX;
-	this.healthY;
-	this.unitSpeed = 1;
-	this.damage = 5;
-	this.range = 5;
-	this.sight = 7;
-	this.coolDown = 1;
+	var debug = false;
 	
-	this.setDegrees = function (newDegrees) {
-		internal.degrees = newDegrees;
-	};
+	var poolSize = 20;
+	var next = 0;
 	
-	this.gone = function () {
-		return internal.gone;
+	if(!debug) {
+		for(var i = 0; i < poolSize; i++) {
+			me["a" + i] = new Worker(script);
+			me["a" + i].onmessage = onMessage;
+		}
 	}
 	
-	this.died = function () {
-		internal.action = 3;
-		internal.died = true;
-		me.setAction = function () {};
+	window["postMessage"] = function (message) {
+		onMessage({data:message});
+	}
+	
+	function onMessage (message) {
+		var messageData = JSON.parse(message.data);
+		if(messageData.c === "debug") {
+			console.log(messageData.a.message);
+			return;
+		}
+		handler[messageData.c](messageData.a);
+	}
+	
+	this.broadcast = function (func, args) {
+		var message = JSON.stringify({f:func,a:args});
+		if(!debug) {
+			for(var i = 0; i < poolSize; i++) {
+				me["a" + i].postMessage(message);
+			}
+		} else {
+			onmessage({data:message});
+		}
 	};
 	
-	this.isDead = function () {
-		return internal.died;
+	this.send = function (func, args) {
+		var message = JSON.stringify({f:func,a:args});
+		if(!debug) {
+			me["a" + next].postMessage(message);
+		} else {
+			onmessage({data:message});
+		}
+		next = (next + 1) % poolSize;
 	};
-	
-	this.setAction = function (newAction) {
-		internal.step = 0;
-		internal.action = newAction;
+}
+
+TacoGame.PathFinding = new function () {
+	var handlers = {
+		pathBuilt : function (unitPath) {
+			lastStart = pathFindingQueue[unitPath.id];
+			if(lastStart) {
+				console.log((new Date()).getTime() - lastStart);
+			}
+			TacoGame.Map.setUnitPath(unitPath.id, unitPath.path);
+			pool.broadcast("updateUnitPath", unitPath);
+		},
+		redoPath : function (unitToRedo) {
+			TacoGame.Map.setUnitDestination(unitToRedo.id, unitToRedo.end);
+		}
 	};
-	
-	this.getAction = function () {
-		return internal.action;
-	};
-	
-	this.handleKeyPress = function (keyPressed) {
+	var pool = new TacoGame.WorkerPool("script/AStar.js", handlers);
+	var pathFindingQueue = {};
 		
+	function addUnit(unitData) {
+		pool.broadcast("addUnit", {id:unitData.id,shape:{x:unitData.x,y:unitData.y,radius:unitData.r}});
+	}
+	
+	function removeUnit(unitData) {
+		pool.broadcast("removeUnit", {id:unitData.id});
+	}
+	
+	function stepPaths(step) {
+		pool.broadcast("step", step);
+	}
+	
+	this.createPath = function (end, id, unitSpeed, startTime) {
+		if(!pathFindingQueue[id]) {
+			pathFindingQueue[id] = [];
+		}
+		pathFindingQueue[id] = new Date().getTime();
+		pool.send("createUnitPath", {
+			end: end,
+			unitSpeed: unitSpeed,
+			id: id,
+			startTime: startTime
+		});
+	}
+	
+	this.init = function () {
+		pool.send("setPathChecker", {});
+		pool.broadcast("setWidth", width);
+		
+		TacoGame.Utils.addListener('stepWorld', stepPaths);
+		TacoGame.Utils.addServerListener('addUnit', addUnit);
+		TacoGame.Utils.addServerListener('removeUnit', removeUnit);
 	};
 };
-
-var MarineSprite = function (parent) {
-	var me = {
-		action : 0,
-		step : 0,
-		died : false,
-		degrees : 0,
-		gone: false
-	};
-	
-	TacoGame.Sprite.call(this, me, parent);
-	var sprite = this;
-
-	this.width = 64;
-	this.height = 64;
-	this.fixX = 32;
-	this.fixY = 42;
-	
-	this.unitSpeed = 1;
-	
-	this.maxHealth = 50;
-	this.healthX = 9;
-	this.healthWidth = 18;
-	this.healthY = 27;
-	
-	this.damage = 5;
-	this.range = 100;
-	this.sight = 140;
-	this.coolDown = 1;
-	
-	var startX = 0;
-	var startY = 0;
-	var spaceHeight = 64;
-	var spaceWidth = 64;
-	
-	var actions = [
-		{offset : 5, size : 1},//standing
-		{offset : 5, size : 7},//walking
-		{offset : 0, size : 5},//atacking
-		{offset : 0, size : 14}//dying
-	];
-	
-	
-	this.step = function () {
-		me.step++;
-		if(me.died && (me.step === (actions[me.action].size - 1))) {
-			me.gone = true;
-			return false;
-		}
-		me.step = me.step % actions[me.action].size + actions[me.action].offset;
-		if(me.action === 0 && Math.round(Math.random() * 30) == 15) {
-			me.degrees = Math.round(Math.random() * 360);
-		}
-		return true;
-	};
-	
-	this.updateOffsets = function () {
-		sprite.scaleNegative = false;
-		if(me.died) {
-			sprite.offsetY = startY + (spaceHeight * 13);
-			sprite.offsetX = startX + (spaceWidth * Math.floor(me.step / 2));
-			return;
-		}
-		var column = Math.floor(me.degrees / 11.25);
-		
-		if(column > 16) {
-			sprite.scaleNegative = true;
-			column = 16 - (column % 16);
-		}
-		sprite.offsetY = startY + (spaceHeight * me.step);
-		sprite.offsetX = startX + (spaceWidth * column);
-	};
-
-	this.handleStim = function () {
-		var multiplier = 1.1;
-		var attackMultiplier = 1.3;
-		parent.attacked(5);
-		sprite.unitSpeed *= multiplier;
-		sprite.damage *= attackMultiplier;
-		sprite.coolDown /= attackMultiplier;
-		setTimeout(function () {
-			sprite.unitSpeed /= multiplier;
-			sprite.damage /= attackMultiplier;
-			sprite.coolDown *= attackMultiplier;
-		}, 5 * 1000);
-		parent.recalculatePath();
-	};
-	
-	this.handleKeyPress = function (keyPressed) {
-		var multiplier = 1.1;
-		if(keyPressed.char === 't') {
-			if(parent.getHealth() > 10) {
-				var event = {
-					type: "EntityAction",
-					action: "Stim",
-					unit: parent.id
-				};
-				TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(event));
-			}
-		}
-	};
-	
-	parent.kill = sprite.died;
-	parent.gone = sprite.gone;
-	parent.damage = sprite.damage;
-	parent.range = sprite.range;
-	parent.sight = sprite.sight;
-	parent.handleStim = sprite.handleStim;
-}
-MarineSprite.prototype.imgURLGreen = "sprites/marinezGreen.png";
-MarineSprite.prototype.imgURLRed = "sprites/marinezRed.png";
-
-
-var ZerglingSprite = function () {
-	var me = {
-		action : 0,
-		step : 0,
-		died : false,
-		degrees : 0,
-		gone: false
-	};
-	
-	TacoGame.Sprite.call(this, me);
-	var sprite = this;
-		
-	var startX = 25;
-	var startY = 25;
-	var spaceHeight = 128;
-	var spaceWidth = 128;
-	
-	var actions = [
-		{offset : 5, size : 1},//standing
-		{offset : 5, size : 7},//walking
-		{offset : 0, size : 5},//atacking
-		{offset : 0, size : 7}//dying
-	];
-	
-	
-	this.step = function () {
-		me.step++;
-		if(me.died && (me.step > actions[me.action].size)) {
-			return false;
-		}
-		me.step = me.step % actions[me.action].size + actions[me.action].offset;
-		if(me.action === 0 && Math.round(Math.random() * 30) == 15) {
-			me.degrees = Math.round(Math.random() * 360);
-		}
-		return true;
-	};
-	
-	this.updateOffsets = function () {
-		sprite.scaleNegative = false;
-		if(me.died) {
-			sprite.offsetY = startY + (spaceHeight * 17);
-			sprite.offsetX = startX + (spaceWidth * me.step);
-			return;
-		}
-		var column = Math.floor(me.degrees / 11.25);
-		
-		if(column > 16) {
-			sprite.scaleNegative = true;
-			column = 16 - (column % 16);
-		}
-		sprite.offsetY = startY + (spaceHeight * me.step);
-		sprite.offsetX = startX + (spaceWidth * column);
-	};
-
-}
-ZerglingSprite.prototype.imgURL = "http://img28.imageshack.us/img28/5176/zergling.png";
-
-
-
-var ZealotSprite = function () {
-	var me = {
-		action : 0,
-		step : 0,
-		died : false,
-		degrees : 0,
-		gone: false
-	};
-	
-	TacoGame.Sprite.call(this, me);
-	var sprite = this;
-	
-	var startX = 25;
-	var startY = 25;
-	var spaceHeight = 128;
-	var spaceWidth = 128;
-	
-	var actions = [
-		{offset : 5, size : 1},//standing
-		{offset : 5, size : 8},//walking
-		{offset : 0, size : 5},//atacking
-		{offset : 0, size : 7}//dying
-	];
-	
-	
-	this.step = function () {
-		me.step++;
-		if(me.died && (me.step > actions[me.action].size)) {
-			me.gone = true;
-			return false;
-		}
-		me.step = me.step % actions[me.action].size + actions[me.action].offset;
-		if(me.action === 0 && Math.round(Math.random() * 30) == 15) {
-			me.degrees = Math.round(Math.random() * 360);
-		}
-		return true;
-	};
-	
-	this.updateOffsets = function () {
-		sprite.scaleNegative = false;
-		if(me.died) {
-			sprite.offsetY = startY + (spaceHeight * 13);
-			sprite.offsetX = startX + (spaceWidth * me.step);
-			return;
-		}
-		var column = Math.floor(me.degrees / 11.25);
-		
-		if(column > 16) {
-			sprite.scaleNegative = true;
-			column = 16 - (column % 16);
-		}
-		sprite.offsetY = startY + (spaceHeight * me.step);
-		sprite.offsetX = startX + (spaceWidth * column);
-	};
-
-}
-ZealotSprite.prototype.imgURL = "sprites/zealotx.png";
-
-var workerPool = {
-	next : 0,
-	onmessage : function (message) {
-		var messageData = JSON.parse(message.data);
-		console.log((new Date()).getTime() - pathFindingQueue[messageData.messageId + "time"]);
-		pathFindingQueue[messageData.messageId](messageData.path);
-		delete pathFindingQueue[messageData.messageId];
-		delete pathFindingQueue[messageData.messageId + "time"];
-	}
-}
-
-var pathFindingQueue = {};
-var poolSize = 20;
-for(var i = 0; i < poolSize; i++) {
-	workerPool["a" + i] = new Worker("script/AStar.js");
-	workerPool["a" + i].onmessage = workerPool.onmessage;
-}
-
-TacoGame.startAStar = function (grid, start, end, shape, id, moveSpeed, callback) {
-	var messageId = id + "" + new Date().getTime();
-	TacoGame.Map.removeClosedPaths(shape);
-	var message = JSON.stringify({grid:gridCache,start:start,end:end,moveSpeed:moveSpeed,messageId:messageId});
-	TacoGame.Map.addClosedPaths(shape);
-	workerPool["a" + workerPool.next].postMessage(message);
-	workerPool.next = (workerPool.next + 1) % poolSize;
-	pathFindingQueue[messageId] = callback;
-	pathFindingQueue[messageId + "time"] = (new Date()).getTime();
-}
-
-
-//For debugging
-/*
-postMessage = function (message) {
-	var messageData = JSON.parse(message.data);
-	console.log((new Date()).getTime() - pathFindingQueue[messageData.id + "time"]);
-	pathFindingQueue[messageData.id](messageData.path);
-	delete pathFindingQueue[messageData.id];
-	delete pathFindingQueue[messageData.id + "time"];
-}
-
-TacoGame.startAStar = function (grid, start, end, diagonal, radius, heuristic, id, callback) {
-	TacoGame.Map.fillClosedPaths(grid, radius, id);
-	var message = {data:JSON.stringify({grid:grid,start:start,end:end,diagonal:diagonal,radius:radius,heuristic:heuristic,id:id})};
-	workerPool.next = (workerPool.next + 1) % 4;
-	setTimeout(function () {onmessage(message)}, 1);
-	pathFindingQueue[id] = callback;
-	pathFindingQueue[id + "time"] = (new Date()).getTime();
-}*/
-
-//Without workers
-/*
-postMessage = function (message) {
-	var messageData = message.data;
-	console.log((new Date()).getTime() - pathFindingQueue[messageData.id + "time"]);
-	pathFindingQueue[messageData.id](messageData.path);
-	delete pathFindingQueue[messageData.id];
-	delete pathFindingQueue[messageData.id + "time"];
-}
-
-TacoGame.startAStar = function (grid, start, end, diagonal, radius, heuristic, id, callback) {
-	TacoGame.Map.fillClosedPaths(grid, radius, id);
-	var message = {data:{grid:grid,start:start,end:end,diagonal:diagonal,radius:radius,heuristic:heuristic,id:id}};
-	workerPool.next = (workerPool.next + 1) % 4;
-	setTimeout(function () {onmessage(message)}, 1);
-	pathFindingQueue[id] = callback;
-	pathFindingQueue[id + "time"] = (new Date()).getTime();
-}*/
+window.addEventListener("load", TacoGame.PathFinding.init);
