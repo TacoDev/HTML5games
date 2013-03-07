@@ -23,6 +23,9 @@ TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesi
 	TacoGame.Utils.addListener('stepWorld', step);
 	
 	function setDestination (end, startTime) {
+		//TODO make it so the units are not anywhere till they have a path, this will fix some errors
+		//TODO look into application cache to share this
+		//TODO look into running this in a few threads
 		//Check if we are less than a step away, if so don't move
 		if(Math.abs(shape.x - end.x) < spriteData.unitSpeed &&
 			Math.abs(shape.y - end.y) < spriteData.unitSpeed) {
@@ -38,17 +41,17 @@ TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesi
 	}
 	
 	function step(time) {
-		//console.log('step called');
 		spriteData.step();
 		if(desiredLocation && !spriteData.isDead()) {
-			//console.log('step');
 			if(time > desiredLocation.steps.lastStepTime) {
+				shape.x = desiredLocation.steps.end.x;
+				shape.y = desiredLocation.steps.end.y;
 				desiredLocation = null;
 				spriteData.setAction(0);
 				return;
 			} else if (desiredLocation.steps[time]) {
 				var nextStep = desiredLocation.steps[time];
-				spriteData.setDegrees(Math.angleBetweenTwoPoints(nextStep, shape));			
+				spriteData.setDegrees(Math.angleBetweenTwoPoints(nextStep, shape));
 				shape.x = nextStep.x;
 				shape.y = nextStep.y;
 				if(TacoGame.Map.isOccupied(nextStep.x, nextStep.y, shape.radius, id)) {
@@ -165,7 +168,6 @@ TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesi
 	
 	this.setPath = function (newPath) {
 		//TODO make sure it is only to the latest request
-		console.log('got new path');
 		desiredLocation = {
 			x: newPath.end.x,
 			y: newPath.end.y,

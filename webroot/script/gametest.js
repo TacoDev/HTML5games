@@ -105,7 +105,7 @@ TacoGame.Map = new function () {
 			var marineRadius = 15;
 			var centerX = randomInt(200, 400);
 			var centerY = randomInt(200, 400);
-			for(var i = 0; i < 20; i++) {
+			for(var i = 0; i < 25; i++) {
 				do {
 					var x = randomInt(centerX - 100, centerX + 100);
 					var y = randomInt(centerY - 100, centerY + 100);
@@ -281,7 +281,7 @@ TacoGame.Map = new function () {
 		},
 		
 		applyAction : function (unit, action) {
-			entities[unit]["handle" + action]();
+			entitiesMap[unit]["handle" + action]();
 		},
 		
 		deselectEntities : function () {
@@ -447,7 +447,7 @@ TacoGame.PathFinding = new function () {
 			pool.broadcast("updateUnitPath", unitPath);
 		},
 		redoPath : function (unitToRedo) {
-			TacoGame.Map.setUnitDestination(unitToRedo.id, unitToRedo.end);
+			TacoGame.Map.setUnitDestination(unitToRedo.id, unitToRedo.end, unitToRedo.startTime);
 		}
 	};
 	var pool = new TacoGame.WorkerPool("script/AStar.js", handlers);

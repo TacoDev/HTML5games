@@ -1,4 +1,7 @@
+importScripts('math.js');
+
 TacoGameWorker = {};
+//localStorage['test' + Math.random] = new Date().getTime();
 
 onmessage = function(e){
 	var p = JSON.parse(e.data);
@@ -55,6 +58,10 @@ function MapEntity(data, time) {
 	this.lastStepTime = function () {
 		return location.lastStepTime;
 	}
+	
+	this.startTime = function () {
+		return location.startTime;
+	}
 }
 
 TacoGameWorker.AStar = new function () {
@@ -102,7 +109,7 @@ TacoGameWorker.AStar = new function () {
 			var time = entities[id].lastStepTime();
 			var end = entities[id].getShape(time);
 			if(isOccupied(end, time, id)) {
-				syncData("redoPath", {id:id, end:end});
+				syncData("redoPath", {id:id, end:end, startTime:currentTime});
 			}
 		}
 	}
@@ -110,7 +117,8 @@ TacoGameWorker.AStar = new function () {
 	function returnPath(curr, startTime) {
 		var ret = {
 			end: {x: curr.x, y: curr.y},
-			lasStepTime: startTime + curr.g
+			lastStepTime: startTime + curr.g,
+			startTime: startTime
 		};
 		do {
 			ret[startTime + curr.g] = {
@@ -183,6 +191,10 @@ TacoGameWorker.AStar = new function () {
 	// unitSpeed
 	//}
 	me.createUnitPath = function (pathRequest) {
+		if (pathChecker) {
+			syncData("redoPath", {id:pathRequest.id, end:pathRequest.end, startTime:pathRequest.startTime});
+			return;
+		}
 		astar.search(
 			entities[pathRequest.id].getShape(pathRequest.startTime),
 			pathRequest.end,
@@ -253,7 +265,7 @@ TacoGameWorker.AStar = new function () {
 						return;
 					}
 					
-					if(isOccupied(neighbor, currentTime + gScore, unitId) || neighbors.closed) {
+					if(isOccupied(neighbor, startTime + gScore, unitId) || neighbors.closed) {
 						// Not a valid node to process, skip to next neighbor.
 						continue;
 					}
@@ -473,25 +485,4 @@ TacoGameWorker.AStar = new function () {
 		}
 	  }
 	};
-}
-
-
-TacoGameWorker.Math = new function () {
-
-	 Math.distanceBetweenSquared = function(p1, p2) {
-		var dx = p2.x - p1.x;
-		var dy = p2.y - p1.y;
-		return ( dx * dx )  + ( dy * dy );
-	}
-	
-	Math.circlesColliding = function (circle1, circle2) {
-		//compare the distance to combined radii
-		var distanceSquared = Math.distanceBetweenSquared(circle1, circle2);
-		var radiiSquared = Math.pow(circle1.radius + circle2.radius, 2);
-		if ( distanceSquared < radiiSquared ) {
-			return true;
-		} else {
-			return false;
-		}
-	}
 }

@@ -1,5 +1,5 @@
 
-TacoGame.Math = new function () {
+(function () {
 
 	 Math.distanceBetweenSquared = function(p1, p2) {
 		var dx = p2.x - p1.x;
@@ -21,7 +21,6 @@ TacoGame.Math = new function () {
 		var distanceSquared = Math.distanceBetweenSquared(circle1, circle2);
 		var radiiSquared = Math.pow(circle1.radius + circle2.radius, 2);
 		if ( distanceSquared < radiiSquared ) {
-			console.log(distanceSquared + ":" + radiiSquared);
 			return true;
 		} else {
 			return false;
@@ -73,4 +72,4 @@ TacoGame.Math = new function () {
 		}
 		return false;
 	}
-}
+})();
