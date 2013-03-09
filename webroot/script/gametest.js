@@ -308,6 +308,7 @@ TacoGame.Map = new function () {
 						type : "MoveUnit",
 						startTime : TacoGame.WorldSimulator.getCurrentTime()
 					};
+					TacoGame.PathFinding.prepMove(playerEntities[i].id);
 					TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(newEvent));
 				}
 			}
@@ -465,21 +466,25 @@ TacoGame.PathFinding = new function () {
 		pool.broadcast("step", step);
 	}
 	
-	this.createPath = function (end, id, unitSpeed, startTime) {
+	this.createPath = function (start, end, id, unitSpeed, startTime) {
 		if(!pathFindingQueue[id]) {
 			pathFindingQueue[id] = [];
 		}
 		pathFindingQueue[id] = new Date().getTime();
 		pool.send("createUnitPath", {
+			start: start,
 			end: end,
 			unitSpeed: unitSpeed,
 			id: id,
 			startTime: startTime
 		});
-	}
+	};
+	
+	this.prepMove = function (id) {
+		pool.broadcast("setUnitToMove", id);
+	};
 	
 	this.init = function () {
-		pool.send("setPathChecker", {});
 		pool.broadcast("setWidth", width);
 		
 		TacoGame.Utils.addListener('stepWorld', stepPaths);

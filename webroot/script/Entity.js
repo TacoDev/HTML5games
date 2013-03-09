@@ -26,13 +26,9 @@ TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesi
 		//TODO make it so the units are not anywhere till they have a path, this will fix some errors
 		//TODO look into application cache to share this
 		//TODO look into running this in a few threads
-		//Check if we are less than a step away, if so don't move
-		if(Math.abs(shape.x - end.x) < spriteData.unitSpeed &&
-			Math.abs(shape.y - end.y) < spriteData.unitSpeed) {
-			return;
-		}
 		setTimeout(function () {
 			TacoGame.PathFinding.createPath(
+				shape,
 				end,
 				id,
 				spriteData.unitSpeed,
@@ -75,9 +71,6 @@ TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesi
 				end:shape,
 				start:shape
 			};
-			if(desiredLocation) {
-				event.end = desiredLocation.steps.shift();
-			}
 			TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(event));
 		}
 		spriteData.handleKeyPress(keyPressed);

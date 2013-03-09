@@ -1,28 +1,29 @@
 importScripts('math.js');
 
 TacoGameWorker = {};
-//localStorage['test' + Math.random] = new Date().getTime();
 
-onmessage = function(e){
+this.addEventListener('message', function(e){
 	var p = JSON.parse(e.data);
-	
 	TacoGameWorker.AStar[p.f](p.a);
-};
+});
 
-function syncData(callback, args){
+// Send data back to the parent
+TacoGameWorker.syncData = function(callback, args){
 	// Send back the results to the parent page
 	postMessage(JSON.stringify({c:callback,a:args}));
 }
 
+// way to call console.log from webworker
 if(!this.console) {
 	console = {
 		log : function (message) {
-			syncData("debug", {message:message});
+			TacoGameWorker.syncData("debug", {message:message});
 		}
 	}
 }
 
-function MapEntity(data, time) {
+// Striped down entity class for pathfinding
+TacoGameWorker.MapEntity = function (data, time) {
 	var me = this;
 	
 	var shape = data.shape;
@@ -30,18 +31,21 @@ function MapEntity(data, time) {
 	location.end = {x:shape.x,y:shape.y};
 	location.lastStepTime = time;
 	
+	// Update the path for this entity, and its location
 	this.setPath = function(path, time) {
 		location = path;
-		shape.x = (path[time] || path.end).x;
-		shape.y = (path[time] || path.end).y;
+		me.step(time);
 	}
 	
+	// Get a copy of the shape
+	// TODO add type to the shape
 	this.getShape = function (time) {
 		//TODO make this support more then circles
 		var tmp = location[time] || location.end;
 		return {x:tmp.x,y:tmp.y,radius:shape.radius};
 	}
 	
+	// Make the Entity take a step
 	this.step = function (time) {
 		var step = location[time];
 		if(step) {
@@ -55,12 +59,23 @@ function MapEntity(data, time) {
 		}
 	}
 	
+	// Get the time of the last step
 	this.lastStepTime = function () {
 		return location.lastStepTime;
 	}
 	
+	// Get the time to start moving
 	this.startTime = function () {
 		return location.startTime;
+	}
+	
+	//When you start moving you should not be on the map.
+	//This is so you don't block people during the path building phase
+	this.startMoving = function () {
+		location.end = {
+			x: -10,
+			y: -10
+		}
 	}
 }
 
@@ -68,7 +83,6 @@ TacoGameWorker.AStar = new function () {
 	var me = this;
 	var width = 0;
 	var entities = {};
-	var pathChecker = false;
 	var currentTime = 0;
 	
 	function manhattan(pos0, pos1) {
@@ -102,16 +116,6 @@ TacoGameWorker.AStar = new function () {
 			curr = curr.parent;
 		}
 		return false;
-	}
-	
-	function checkPathConflicts() {
-		for (var id in entities) {
-			var time = entities[id].lastStepTime();
-			var end = entities[id].getShape(time);
-			if(isOccupied(end, time, id)) {
-				syncData("redoPath", {id:id, end:end, startTime:currentTime});
-			}
-		}
 	}
 	
 	function returnPath(curr, startTime) {
@@ -163,7 +167,7 @@ TacoGameWorker.AStar = new function () {
 	// shape,
 	//}
 	me.addUnit = function (unitData) {
-		entities[unitData.id] = new MapEntity(unitData, currentTime);
+		entities[unitData.id] = new TacoGameWorker.MapEntity(unitData, currentTime);
 	}
 	
 	//unitData = {
@@ -180,9 +184,6 @@ TacoGameWorker.AStar = new function () {
 	me.updateUnitPath = function (newPath) {
 		var path = newPath.path, length = path.length;
 		entities[newPath.id].setPath(newPath.path, currentTime);
-		if (pathChecker) {
-			checkPathConflicts();
-		}
 	}
 	
 	//pathRequest = {
@@ -191,12 +192,8 @@ TacoGameWorker.AStar = new function () {
 	// unitSpeed
 	//}
 	me.createUnitPath = function (pathRequest) {
-		if (pathChecker) {
-			syncData("redoPath", {id:pathRequest.id, end:pathRequest.end, startTime:pathRequest.startTime});
-			return;
-		}
 		astar.search(
-			entities[pathRequest.id].getShape(pathRequest.startTime),
+			pathRequest.start,
 			pathRequest.end,
 			pathRequest.id,
 			pathRequest.unitSpeed,
@@ -204,12 +201,12 @@ TacoGameWorker.AStar = new function () {
 		);
 	};
 	
-	me.setPathChecker = function () {
-		pathChecker = true;
+	me.setUnitToMove = function (unitId) {
+		entities[unitId].startMoving();
 	};
 	
 	function setUnitPath(path, id) {
-		syncData("pathBuilt", {path:path,id:id});
+		TacoGameWorker.syncData("pathBuilt", {path:path,id:id});
 	}
 	
 	var astar = {
