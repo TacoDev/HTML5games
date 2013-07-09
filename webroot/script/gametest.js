@@ -299,23 +299,27 @@ TacoGame.Map = new function () {
 		},
 		
 		setDestination : function (event) {
+			var newEvent = {
+				units : [],
+				end : event,
+				type : "MoveUnit",
+				startTime : TacoGame.WorldSimulator.getCurrentTime()
+			};
 			for (var i = 0; i < playerEntities.length; i++) {
 				if(playerEntities[i].selected) {
-					var newEvent = {
+					newEvent.units.push({
 						unit : playerEntities[i].id,
-						start : playerEntities[i].getShape(),
-						end : event,
-						type : "MoveUnit",
-						startTime : TacoGame.WorldSimulator.getCurrentTime()
-					};
-					TacoGame.PathFinding.prepMove(playerEntities[i].id);
-					TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(newEvent));
+						start : playerEntities[i].getShape()
+					});
 				}
+			}
+			if(newEvent.units.length) {
+				TacoGame.WorldSimulator.queueCommand(TacoGame.createCommand(newEvent));
 			}
 		},
 		
-		setUnitDestination : function (unit, end, startTime) {
-			entitiesMap[unit].setDestination(end, startTime);
+		setUnitDestination : function (event, end, startTime) {
+			entitiesMap[event.unit].setDestination(event.start, end, startTime);
 		},
 		
 		setUnitPath : function (unit, path) {
@@ -392,7 +396,7 @@ TacoGame.WorkerPool = function (script, handler) {
 	var me = this;
 	var debug = false;
 	
-	var poolSize = 20;
+	var poolSize = 5;
 	var next = 0;
 	
 	if(!debug) {
@@ -441,9 +445,9 @@ TacoGame.PathFinding = new function () {
 	var handlers = {
 		pathBuilt : function (unitPath) {
 			lastStart = pathFindingQueue[unitPath.id];
-			if(lastStart) {
-				console.log((new Date()).getTime() - lastStart);
-			}
+			/*if(lastStart) {
+				console.log("Total Time:" + ((new Date()).getTime() - lastStart));
+			}*/
 			TacoGame.Map.setUnitPath(unitPath.id, unitPath.path);
 			pool.broadcast("updateUnitPath", unitPath);
 		},
@@ -453,6 +457,8 @@ TacoGame.PathFinding = new function () {
 	};
 	var pool = new TacoGame.WorkerPool("script/AStar.js", handlers);
 	var pathFindingQueue = {};
+	var requests = [];
+	var requestTimeout = null;
 		
 	function addUnit(unitData) {
 		pool.broadcast("addUnit", {id:unitData.id,shape:{x:unitData.x,y:unitData.y,radius:unitData.r}});
@@ -465,23 +471,31 @@ TacoGame.PathFinding = new function () {
 	function stepPaths(step) {
 		pool.broadcast("step", step);
 	}
+
+	function fireCreatePaths() {
+		if(requests.length) {
+			pool.send("createUnitPath", requests);
+			requests = [];
+			requestTimeout = null;
+		}
+	}
 	
 	this.createPath = function (start, end, id, unitSpeed, startTime) {
 		if(!pathFindingQueue[id]) {
 			pathFindingQueue[id] = [];
 		}
 		pathFindingQueue[id] = new Date().getTime();
-		pool.send("createUnitPath", {
+		requests.push({
 			start: start,
 			end: end,
 			unitSpeed: unitSpeed,
 			id: id,
 			startTime: startTime
 		});
-	};
-	
-	this.prepMove = function (id) {
-		pool.broadcast("setUnitToMove", id);
+		if(requestTimeout) {
+			clearTimeout(requestTimeout);
+		}
+		requestTimeout = setTimeout(fireCreatePaths, 0);
 	};
 	
 	this.init = function () {

@@ -22,18 +22,16 @@ TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesi
 	
 	TacoGame.Utils.addListener('stepWorld', step);
 	
-	function setDestination (end, startTime) {
+	function setDestination (start, end, startTime) {
 		//TODO make it so the units are not anywhere till they have a path, this will fix some errors
 		//TODO look into application cache to share this
 		//TODO look into running this in a few threads
-		setTimeout(function () {
-			TacoGame.PathFinding.createPath(
-				shape,
-				end,
-				id,
-				spriteData.unitSpeed,
-				startTime);
-		}, 0);
+		TacoGame.PathFinding.createPath(
+			start,
+			end,
+			id,
+			spriteData.unitSpeed,
+			startTime);
 	}
 	
 	function step(time) {
@@ -67,7 +65,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesi
 		if(keyPressed.char === 's') {
 			var event = {
 				type:"MoveUnit",
-				unit:unitId,
+				units:[{unit:unitId,start:shape}],
 				end:shape,
 				start:shape
 			};

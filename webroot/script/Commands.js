@@ -92,7 +92,9 @@ TacoGame.Commands.UserCommandMoveUnit = function (event) {
 	
 	//When the user does the action
 	function commit() {
-		TacoGame.Map.setUnitDestination(event.unit, event.end, event.startTime);
+		for (var i = event.units.length - 1; i >= 0; i--) {
+			TacoGame.Map.setUnitDestination(event.units[i], event.end, event.startTime);
+		};
 	}
 	
 	//Check if this command needs to be synced with others

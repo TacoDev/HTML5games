@@ -1,11 +1,22 @@
-importScripts('math.js');
 
 TacoGameWorker = {};
 
-this.addEventListener('message', function(e){
-	var p = JSON.parse(e.data);
-	TacoGameWorker.AStar[p.f](p.a);
-});
+if(this.importScripts) {
+	importScripts('math.js');
+
+	this.addEventListener('message', function(e){
+		var p = JSON.parse(e.data);
+		TacoGameWorker.AStar[p.f](p.a);
+	});
+} else {
+
+	onmessage = function(e){
+		var p = JSON.parse(e.data);
+		TacoGameWorker.AStar[p.f](p.a);
+	};
+}
+
+
 
 // Send data back to the parent
 TacoGameWorker.syncData = function(callback, args){
@@ -27,7 +38,7 @@ TacoGameWorker.MapEntity = function (data, time) {
 	var me = this;
 	
 	var shape = data.shape;
-	var location = [];
+	var location = {};
 	location.end = {x:shape.x,y:shape.y};
 	location.lastStepTime = time;
 	
@@ -69,12 +80,16 @@ TacoGameWorker.MapEntity = function (data, time) {
 		return location.startTime;
 	}
 	
-	//When you start moving you should not be on the map.
+	//When you start moving you should not be on the map, you should also not have a path
 	//This is so you don't block people during the path building phase
-	this.startMoving = function () {
-		location.end = {
-			x: -10,
-			y: -10
+	this.startMoving = function (currentTime) {
+		location = {
+			end: {
+				x: -10,
+				y: -10
+			},
+			lastStepTime: currentTime,
+			startTime: currentTime
 		}
 	}
 }
@@ -92,12 +107,13 @@ TacoGameWorker.AStar = new function () {
 		return d1 + d2;
 	}
 
-	function createNode(x, y, closed) {
+	function createNode(x, y, closed, cost) {
 		return {
 			f:0,
 			g:0,
 			h:0,
-			cost:1,
+			t:1,
+			cost: cost || 1,
 			visited:false,
 			closed:closed,
 			parent:null,
@@ -105,27 +121,15 @@ TacoGameWorker.AStar = new function () {
 			y:y
 		}
 	}
-
-	function inLoop(curr, grandParent) {
-		var depth = 0;
-		while(curr.parent) {
-			depth++;
-			if(curr === grandParent) {
-				return depth;
-			}
-			curr = curr.parent;
-		}
-		return false;
-	}
 	
 	function returnPath(curr, startTime) {
 		var ret = {
 			end: {x: curr.x, y: curr.y},
-			lastStepTime: startTime + curr.g,
+			lastStepTime: startTime + curr.t,
 			startTime: startTime
 		};
 		do {
-			ret[startTime + curr.g] = {
+			ret[startTime + curr.t] = {
 				x:curr.x,
 				y:curr.y
 			};
@@ -148,6 +152,67 @@ TacoGameWorker.AStar = new function () {
 			}
 		}
 		return false;
+	}
+
+	function StopWatch() {
+		var start;
+		this.start = function() {
+			start = (new Date()).getTime();
+		}
+
+		this.end = function() {
+			console.log((new Date()).getTime() - start);
+		}
+	}
+
+	function fixEndPoints(pathRequests) {
+		var end = pathRequests[0].end;
+		var placed = [];
+		var center = findCenter(pathRequests);
+		var distanceHeap = new BinaryHeap(function (node) {
+			return node.distanceFromCenter;
+		});
+
+		function findCenter(points) {
+			center = {x:0,y:0};
+			for(var i = points.length - 1; i >= 0; i--) {
+				center.x += points[i].start.x;
+				center.y += points[i].start.y;
+			}
+			center.x = center.x / points.length;
+			center.y = center.y / points.length;
+			return center;
+		}
+
+		function isEndOccupied(unit, units) {
+			for (var i in units) {
+				if(Math.circlesColliding(units[i], unit)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		for (var i = pathRequests.length - 1; i >= 0; i--) {
+			pathRequests[i].distanceFromCenter = Math.distanceBetweenSquared(pathRequests[i].start, center);
+			pathRequests[i].distanceFromEnd = Math.distanceBetweenSquared(pathRequests[i].start, end);
+			distanceHeap.push(pathRequests[i]);
+		};
+
+		while(distanceHeap.size()) {
+			var next = distanceHeap.pop();
+			next.end.radius = entities[next.id].getShape(currentTime).radius;
+			var slope = (next.start.y - center.y) / (next.start.x - center.x);
+			var increase = 1;
+			if(next.start.x < center.x) {
+				increase = -1;
+			}
+			while(isEndOccupied(next.end, placed)) {
+				next.end.x += increase;
+				next.end.y += increase * slope;
+			}
+			placed.push(next.end);
+		}
 	}
 	
 	me.step = function (time) {
@@ -182,30 +247,55 @@ TacoGameWorker.AStar = new function () {
 	// path
 	//}
 	me.updateUnitPath = function (newPath) {
-		var path = newPath.path, length = path.length;
+		var path = newPath.path;
 		entities[newPath.id].setPath(newPath.path, currentTime);
 	}
 	
-	//pathRequest = {
+	//pathRequests = [{
 	// id,
+	// start,
 	// end,
-	// unitSpeed
-	//}
-	me.createUnitPath = function (pathRequest) {
-		astar.search(
-			pathRequest.start,
-			pathRequest.end,
-			pathRequest.id,
-			pathRequest.unitSpeed,
-			pathRequest.startTime
-		);
-	};
-	
-	me.setUnitToMove = function (unitId) {
-		entities[unitId].startMoving();
+	// unitSpeed,
+	// startTime
+	//}]
+	me.createUnitPath = function (pathRequests) {
+		var pathRequest;
+		var path;
+		var stopWatch = new StopWatch();
+		stopWatch.start();
+		var stopWatch2 = new StopWatch();
+		stopWatch2.start();
+		var distanceHeap = new BinaryHeap(function (node) {
+			return node.distanceFromEnd;
+		});
+
+		fixEndPoints(pathRequests);
+		stopWatch2.end();
+
+		for (var i = pathRequests.length - 1; i >= 0; i--) {
+			pathRequest = pathRequests[i];
+			distanceHeap.push(pathRequests[i]);
+			entities[pathRequest.id].startMoving(currentTime);
+		};
+
+		while(distanceHeap.size()) {
+			stopWatch2.start();
+			pathRequest = distanceHeap.pop();
+			path = astar.search(
+				pathRequest.start,
+				pathRequest.end,
+				pathRequest.id,
+				pathRequest.unitSpeed,
+				pathRequest.startTime);
+			setUnitPath(path, pathRequest.id);
+
+			stopWatch2.end();
+		};
+		stopWatch.end();
 	};
 	
 	function setUnitPath(path, id) {
+		me.updateUnitPath({path:path,id:id});
 		TacoGameWorker.syncData("pathBuilt", {path:path,id:id});
 	}
 	
@@ -224,10 +314,13 @@ TacoGameWorker.AStar = new function () {
 			var grid = {};
 			var moveSpeed2 = Math.pow(moveSpeed, 2);
 			var first = astar.init(start);
+			first.t = 0;
 			var heuristic = manhattan;
 			var closestNode = first;
 			closestNode.h = heuristic({x:closestNode.x, y:closestNode.y}, {x:end.x, y:end.y});
 			var openHeap = astar.heap();
+			var distanceFromLastImprovement = 0;
+			var stopWidth = (width / moveSpeed);
 	 
 			openHeap.push(first);
 	 
@@ -235,10 +328,15 @@ TacoGameWorker.AStar = new function () {
 	 
 				// Grab the lowest f(x) to process next.  Heap keeps this sorted for us.
 				var currentNode = openHeap.pop();
+				distanceFromLastImprovement++;
 				
 				if(Math.distanceBetweenSquared(currentNode, end) < moveSpeed2) {
-					setUnitPath(returnPath(currentNode, startTime), unitId);
-					return;
+					return returnPath(currentNode, startTime);
+				}
+
+				//If you can walk across the map and not get closer than you have already gotten as close as you can
+				if(distanceFromLastImprovement > stopWidth) {
+					return returnPath(closestNode, startTime);
 				}
 	 
 				// Normal case -- move currentNode from open to closed, process each of its neighbors.
@@ -253,16 +351,10 @@ TacoGameWorker.AStar = new function () {
 					// The g score is the shortest distance from start to current node.
 					// We need to check if the path we have arrived at this neighbor is the shortest one we have seen yet.
 					var gScore = currentNode.g + neighbor.cost;
+					var time = currentNode.t + 1;
 					var beenVisited = neighbor.visited;
 					
-					//If you cannot get to a node you will hit a loop while going in a circle around the goal,
-					// you should exit when the circle is created
-					if(beenVisited && inLoop(neighbor, currentNode)) {
-						setUnitPath(returnPath(closestNode, startTime), unitId);
-						return;
-					}
-					
-					if(isOccupied(neighbor, startTime + gScore, unitId) || neighbors.closed) {
+					if(isOccupied(neighbor, startTime + time, unitId) || neighbors.closed) {
 						// Not a valid node to process, skip to next neighbor.
 						continue;
 					}
@@ -274,8 +366,12 @@ TacoGameWorker.AStar = new function () {
 						neighbor.parent = currentNode;
 						neighbor.h = neighbor.h || heuristic({x:neighbor.x, y:neighbor.y}, {x:end.x, y:end.y});
 						neighbor.g = gScore;
+						neighbor.t = time;
 						neighbor.f = neighbor.g + neighbor.h;
-						closestNode = (closestNode.h > neighbor.h) ? neighbor : closestNode;
+						if(closestNode.h > neighbor.h) {
+							closestNode = neighbor;
+							distanceFromLastImprovement = 0;
+						}
 	 
 						if (!beenVisited) {
 							// Pushing to heap will put it in proper place based on the 'f' value.
@@ -288,7 +384,7 @@ TacoGameWorker.AStar = new function () {
 					}
 				}
 			}
-			setUnitPath(returnPath(closestNode, startTime), unitId);
+			return returnPath(closestNode, startTime);
 		},
 		neighbors: function(grid, node, moveSpeed, moveSpeedAngle) {
 			var ret = [];
@@ -302,11 +398,11 @@ TacoGameWorker.AStar = new function () {
 				grid[x] = [];
 			}
 			//TODO: Change to use collision instead of fixed graph
-			function setGrid(x, y) {
+			function setGrid(x, y, cost) {
 				if(grid[x][y] && grid[x][y].cost) {
 					grid[x][y] = grid[x][y];
 				} else {
-					grid[x][y] = createNode(x, y, false);
+					grid[x][y] = createNode(x, y, false, cost);
 				}
 				return grid[x][y];
 			}
@@ -320,11 +416,11 @@ TacoGameWorker.AStar = new function () {
 				
 				// Southwest
 				if(y > 0) {
-					ret.push(setGrid(xs1, ys1));
+					ret.push(setGrid(xs1, ys1, 1.8));
 				}
 				// Northwest
 				if(y < width) {
-					ret.push(setGrid(xs1, y1));
+					ret.push(setGrid(xs1, y1, 1.8));
 				}
 			}
 	 
@@ -337,12 +433,12 @@ TacoGameWorker.AStar = new function () {
 				
 				// Southeast
 				if(y > 0) {
-					ret.push(setGrid(x1, ys1));
+					ret.push(setGrid(x1, ys1, 1.8));
 				}
 
 				// Northeast
 				if(y < width) {
-					ret.push(setGrid(x1, y1));
+					ret.push(setGrid(x1, y1, 1.8));
 				}
 			}
 	 
@@ -483,3 +579,6 @@ TacoGameWorker.AStar = new function () {
 	  }
 	};
 }
+
+
+//First get a path with only non unit collision

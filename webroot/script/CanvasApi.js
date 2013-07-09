@@ -193,7 +193,7 @@ TacoGame.CanvasApi = new function () {
 				ctx.beginPath();
 				ctx.fillStyle = "#00E32A";
 				ctx.strokeStyle = "#00E32A";
-				//ctx.translate(-viewport.x, -viewport.y);
+				ctx.translate(-viewport.x, -viewport.y);
 				//ctx.setTransform(1.3,0,0,.7, -viewport.x, -viewport.y);
 				ctx.beginPath();
 				ctx.arc(entities[i].tX , entities[i].tY, entities[i].radius, 0, 2*Math.PI);
