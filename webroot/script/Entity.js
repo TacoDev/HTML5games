@@ -23,9 +23,7 @@ TacoGame.Entity = function (_shape, type, unitId, playerId, initHealth, initDesi
 	TacoGame.Utils.addListener('stepWorld', step);
 	
 	function setDestination (start, end, startTime) {
-		//TODO make it so the units are not anywhere till they have a path, this will fix some errors
 		//TODO look into application cache to share this
-		//TODO look into running this in a few threads
 		TacoGame.PathFinding.createPath(
 			start,
 			end,

@@ -90,10 +90,61 @@ TacoGame.Commands.UserCommandScroll = function (event) {
 TacoGame.Commands.UserCommandMoveUnit = function (event) {
 	TacoGame.Commands.UserCommand.call(this, event, commit);
 	
+	function fixEndPoints(pathRequests, end) {
+		var placed = [];
+		var center = findCenter(pathRequests);
+		var distanceHeap = new BinaryHeap(function (node) {
+			return node.distanceFromCenter;
+		});
+
+		function findCenter(points) {
+			center = {x:0,y:0};
+			for(var i = points.length - 1; i >= 0; i--) {
+				center.x += points[i].start.x;
+				center.y += points[i].start.y;
+			}
+			center.x = center.x / points.length;
+			center.y = center.y / points.length;
+			return center;
+		}
+
+		function isEndOccupied(unit, units) {
+			for (var i in units) {
+				if(Math.circlesColliding(units[i], unit)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		for (var i = pathRequests.length - 1; i >= 0; i--) {
+			pathRequests[i].distanceFromCenter = Math.distanceBetweenSquared(pathRequests[i].start, center);
+			pathRequests[i].distanceFromEnd = Math.distanceBetweenSquared(pathRequests[i].start, end);
+			distanceHeap.push(pathRequests[i]);
+		};
+
+		while(distanceHeap.size()) {
+			var next = distanceHeap.pop();
+			next.end = {x:end.x,y:end.y};
+			next.end.radius = TacoGame.Map.getEntity(next.unit).getShape().radius;
+			var slope = (next.start.y - center.y) / (next.start.x - center.x);
+			var increase = 1;
+			if(next.start.x < center.x) {
+				increase = -1;
+			}
+			while(isEndOccupied(next.end, placed)) {
+				next.end.x += increase;
+				next.end.y += increase * slope;
+			}
+			placed.push(next.end);
+		}
+	}
+
 	//When the user does the action
 	function commit() {
+		fixEndPoints(event.units, event.end);
 		for (var i = event.units.length - 1; i >= 0; i--) {
-			TacoGame.Map.setUnitDestination(event.units[i], event.end, event.startTime);
+			TacoGame.Map.setUnitDestination(event.units[i], event.startTime);
 		};
 	}
 	

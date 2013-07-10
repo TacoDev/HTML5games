@@ -103,12 +103,12 @@ TacoGame.Map = new function () {
 				return Math.round((Math.random() * (max - min)) + min);
 			}
 			var marineRadius = 15;
-			var centerX = randomInt(200, 400);
-			var centerY = randomInt(200, 400);
-			for(var i = 0; i < 25; i++) {
+			var centerX = randomInt(400, 600);
+			var centerY = randomInt(400, 600);
+			for(var i = 0; i < 10; i++) {
 				do {
-					var x = randomInt(centerX - 100, centerX + 100);
-					var y = randomInt(centerY - 100, centerY + 100);
+					var x = randomInt(centerX - 300, centerX + 300);
+					var y = randomInt(centerY - 300, centerY + 300);
 				} while(TacoGame.Map.isOccupied(x, y, marineRadius));
 				var id = (new Date()).getTime() + "" + Math.round(Math.random() * 600);
 				addEntity({x:x,y:y,r:marineRadius,type:"MarineSprite",playerId:TacoGame.Player.id,id:id});
@@ -318,12 +318,16 @@ TacoGame.Map = new function () {
 			}
 		},
 		
-		setUnitDestination : function (event, end, startTime) {
-			entitiesMap[event.unit].setDestination(event.start, end, startTime);
+		setUnitDestination : function (event, startTime) {
+			entitiesMap[event.unit].setDestination(event.start, event.end, startTime);
 		},
 		
 		setUnitPath : function (unit, path) {
 			entitiesMap[unit].setPath(path);
+		},
+
+		getEntity : function (unit) {
+			return entitiesMap[unit];
 		},
 		
 		isUnitSelected : function () {
@@ -388,74 +392,22 @@ TacoGame.WorldSimulator = new function () {
 }
 window.addEventListener("load", TacoGame.WorldSimulator.init);
 
-function postMessage (message) {
-	workerPool.onMessage(message);
-}
-
-TacoGame.WorkerPool = function (script, handler) {
-	var me = this;
-	var debug = false;
-	
-	var poolSize = 5;
-	var next = 0;
-	
-	if(!debug) {
-		for(var i = 0; i < poolSize; i++) {
-			me["a" + i] = new Worker(script);
-			me["a" + i].onmessage = onMessage;
-		}
-	}
-	
-	window["postMessage"] = function (message) {
-		onMessage({data:message});
-	}
-	
-	function onMessage (message) {
-		var messageData = JSON.parse(message.data);
-		if(messageData.c === "debug") {
-			console.log(messageData.a.message);
-			return;
-		}
-		handler[messageData.c](messageData.a);
-	}
-	
-	this.broadcast = function (func, args) {
-		var message = JSON.stringify({f:func,a:args});
-		if(!debug) {
-			for(var i = 0; i < poolSize; i++) {
-				me["a" + i].postMessage(message);
-			}
-		} else {
-			onmessage({data:message});
-		}
-	};
-	
-	this.send = function (func, args) {
-		var message = JSON.stringify({f:func,a:args});
-		if(!debug) {
-			me["a" + next].postMessage(message);
-		} else {
-			onmessage({data:message});
-		}
-		next = (next + 1) % poolSize;
-	};
-}
 
 TacoGame.PathFinding = new function () {
 	var handlers = {
 		pathBuilt : function (unitPath) {
 			lastStart = pathFindingQueue[unitPath.id];
-			/*if(lastStart) {
+			if(lastStart) {
 				console.log("Total Time:" + ((new Date()).getTime() - lastStart));
-			}*/
+			}
 			TacoGame.Map.setUnitPath(unitPath.id, unitPath.path);
 			pool.broadcast("updateUnitPath", unitPath);
 		},
 		redoPath : function (unitToRedo) {
-			TacoGame.Map.setUnitDestination(unitToRedo.id, unitToRedo.end, unitToRedo.startTime);
+			TacoGame.Map.setUnitDestination(unitToRedo.id, unitToRedo.startTime);
 		}
 	};
-	var pool = new TacoGame.WorkerPool("script/AStar.js", handlers);
+	var pool;
 	var pathFindingQueue = {};
 	var requests = [];
 	var requestTimeout = null;
@@ -499,6 +451,7 @@ TacoGame.PathFinding = new function () {
 	};
 	
 	this.init = function () {
+		pool = new TacoGame.WorkerPool("script/AStar.js", handlers);
 		pool.broadcast("setWidth", width);
 		
 		TacoGame.Utils.addListener('stepWorld', stepPaths);
